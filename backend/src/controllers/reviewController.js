@@ -1,0 +1,229 @@
+const Review = require('../models/Review');
+const Registration = require('../models/Registration');
+const Event = require('../models/Event');
+
+// Create review
+exports.createReview = async (req, res, next) => {
+    try {
+        const { eventId } = req.params;
+        const { rating, title, comment } = req.body;
+
+        // Validation
+        if (!rating || !comment) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide rating and comment'
+            });
+        }
+
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rating must be between 1 and 5'
+            });
+        }
+
+        if (comment.length < 10) {
+            return res.status(400).json({
+                success: false,
+                message: 'Comment must be at least 10 characters'
+            });
+        }
+
+        // Check if user attended the event
+        const registration = await Registration.findOne({
+            user: req.user.id,
+            event: eventId,
+            status: 'checked-in'
+        });
+
+        if (!registration) {
+            return res.status(403).json({
+                success: false,
+                message: 'You must attend the event to leave a review'
+            });
+        }
+
+        // Check if already reviewed
+        const existing = await Review.findOne({
+            user: req.user.id,
+            event: eventId
+        });
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: 'You have already reviewed this event'
+            });
+        }
+
+        const review = await Review.create({
+            user: req.user.id,
+            event: eventId,
+            rating,
+            title,
+            comment,
+            verified: true
+        });
+
+        // Update event rating
+        const reviews = await Review.find({ event: eventId });
+        const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+        const event = await Event.findById(eventId);
+        event.rating = avgRating;
+        event.reviewCount = reviews.length;
+        await event.save();
+
+        const populatedReview = await review.populate('user', 'firstName lastName avatar');
+
+        res.status(201).json({
+            success: true,
+            message: 'Review created successfully',
+            review: populatedReview
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Get event reviews
+exports.getEventReviews = async (req, res, next) => {
+    try {
+        const { eventId } = req.params;
+        const { page = 1, limit = 10, sortBy = '-createdAt' } = req.query;
+
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        const reviews = await Review.find({ event: eventId })
+            .populate('user', 'firstName lastName avatar')
+            .sort(sortBy)
+            .skip(skip)
+            .limit(limitNum);
+
+        const total = await Review.countDocuments({ event: eventId });
+
+        res.json({
+            success: true,
+            count: reviews.length,
+            total,
+            pages: Math.ceil(total / limitNum),
+            reviews
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Update review
+exports.updateReview = async (req, res, next) => {
+    try {
+        const { reviewId } = req.params;
+        const { rating, title, comment } = req.body;
+
+        let review = await Review.findById(reviewId);
+
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        // Check authorization
+        if (review.user.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to update this review'
+            });
+        }
+
+        if (rating) review.rating = rating;
+        if (title) review.title = title;
+        if (comment) review.comment = comment;
+
+        review.updatedAt = new Date();
+        await review.save();
+
+        res.json({
+            success: true,
+            message: 'Review updated successfully',
+            review
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Delete review
+exports.deleteReview = async (req, res, next) => {
+    try {
+        const { reviewId } = req.params;
+
+        const review = await Review.findById(reviewId);
+
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        // Check authorization
+        if (review.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this review'
+            });
+        }
+
+        await Review.findByIdAndDelete(reviewId);
+
+        // Update event rating
+        const reviews = await Review.find({ event: review.event });
+        const event = await Event.findById(review.event);
+        if (reviews.length > 0) {
+            const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+            event.rating = avgRating;
+        } else {
+            event.rating = 0;
+        }
+        event.reviewCount = reviews.length;
+        await event.save();
+
+        res.json({
+            success: true,
+            message: 'Review deleted successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Like review
+exports.likeReview = async (req, res, next) => {
+    try {
+        const { reviewId } = req.params;
+
+        const review = await Review.findById(reviewId);
+
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        review.likes += 1;
+        await review.save();
+
+        res.json({
+            success: true,
+            message: 'Review liked',
+            likes: review.likes
+        });
+    } catch (error) {
+        next(error);
+    }
+};

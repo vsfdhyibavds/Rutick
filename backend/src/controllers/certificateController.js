@@ -1,0 +1,187 @@
+const Certificate = require('../models/Certificate');
+const Registration = require('../models/Registration');
+const Event = require('../models/Event');
+const User = require('../models/User');
+const { generateCertificateId } = require('../utils/tokenUtils');
+const { sendCertificateEmail } = require('../utils/emailTemplates');
+
+// Generate certificate for attended event
+exports.generateCertificate = async (req, res, next) => {
+    try {
+        const { eventId } = req.params;
+
+        // Check if user attended
+        const registration = await Registration.findOne({
+            user: req.user.id,
+            event: eventId,
+            status: 'checked-in'
+        });
+
+        if (!registration) {
+            return res.status(403).json({
+                success: false,
+                message: 'You must attend the event to receive a certificate'
+            });
+        }
+
+        // Check if certificate already exists
+        const existing = await Certificate.findOne({
+            user: req.user.id,
+            event: eventId
+        });
+
+        if (existing) {
+            return res.json({
+                success: true,
+                message: 'Certificate already issued',
+                certificate: existing
+            });
+        }
+
+        const event = await Event.findById(eventId);
+        const user = await User.findById(req.user.id);
+
+        const certificateId = generateCertificateId();
+
+        // Generate certificate (simple placeholder for now - integrate with proper PDF generation later)
+        const certificateData = {
+            user: req.user.id,
+            event: eventId,
+            certificateId,
+            title: `Certificate of Participation - ${event.title}`,
+            fileUrl: `/certificates/${certificateId}.pdf`, // Placeholder
+            status: 'issued'
+        };
+
+        const certificate = await Certificate.create(certificateData);
+
+        // Send certificate email
+        try {
+            await sendCertificateEmail(user, event, `${process.env.FRONTEND_URL}/certificates/${certificateId}`);
+        } catch (error) {
+            console.error('Failed to send certificate email:', error);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Certificate generated successfully',
+            certificate
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Get user certificates
+exports.getUserCertificates = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        const certificates = await Certificate.find({ user: userId, status: 'issued' })
+            .populate('event', 'title date -attendees -registrants')
+            .sort('-issueDate');
+
+        res.json({
+            success: true,
+            count: certificates.length,
+            certificates
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Get certificate
+exports.getCertificate = async (req, res, next) => {
+    try {
+        const { certificateId } = req.params;
+
+        const certificate = await Certificate.findOne({ certificateId, status: 'issued' })
+            .populate('user', 'firstName lastName')
+            .populate('event', 'title date location');
+
+        if (!certificate) {
+            return res.status(404).json({
+                success: false,
+                message: 'Certificate not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            certificate
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Get event certificates
+exports.getEventCertificates = async (req, res, next) => {
+    try {
+        const { eventId } = req.params;
+
+        const event = await Event.findById(eventId);
+        if (!event) {
+            return res.status(404).json({
+                success: false,
+                message: 'Event not found'
+            });
+        }
+
+        // Check authorization
+        if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized'
+            });
+        }
+
+        const certificates = await Certificate.find({ event: eventId, status: 'issued' })
+            .populate('user', 'firstName lastName email')
+            .sort('-issueDate');
+
+        res.json({
+            success: true,
+            count: certificates.length,
+            certificates
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Revoke certificate
+exports.revokeCertificate = async (req, res, next) => {
+    try {
+        const { certificateId } = req.params;
+
+        const certificate = await Certificate.findById(certificateId);
+
+        if (!certificate) {
+            return res.status(404).json({
+                success: false,
+                message: 'Certificate not found'
+            });
+        }
+
+        // Check authorization
+        const event = await Event.findById(certificate.event);
+        if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized'
+            });
+        }
+
+        certificate.status = 'revoked';
+        await certificate.save();
+
+        res.json({
+            success: true,
+            message: 'Certificate revoked successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
