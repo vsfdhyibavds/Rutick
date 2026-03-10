@@ -1,50 +1,55 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const reviewSchema = new mongoose.Schema({
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+const Review = sequelize.define('Review', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
     },
-    event: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Event',
-        required: true,
-        index: true
+    userId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+    },
+    eventId: {
+        type: DataTypes.UUID,
+        allowNull: false,
     },
     rating: {
-        type: Number,
-        required: [true, 'Please provide a rating'],
-        min: 1,
-        max: 5
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        validate: {
+            min: 1,
+            max: 5,
+        }
     },
     title: {
-        type: String,
-        maxlength: 100
+        type: DataTypes.STRING(100),
     },
     comment: {
-        type: String,
-        required: [true, 'Please provide a comment'],
-        minlength: 10,
-        maxlength: 1000
+        type: DataTypes.TEXT,
+        allowNull: false,
+        validate: {
+            len: [10, 1000],
+        }
     },
     verified: {
-        type: Boolean,
-        default: false
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
     },
     likes: {
-        type: Number,
-        default: 0
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
     },
-    createdAt: {
-        type: Date,
-        default: Date.now,
-        index: true
-    },
-    updatedAt: Date
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    tableName: 'reviews',
+    indexes: [
+        {
+            unique: true,
+            fields: ['userId', 'eventId']
+        }
+    ]
+});
 
-// Compound index for unique review per user-event
-reviewSchema.index({ user: 1, event: 1 }, { unique: true });
-
-module.exports = mongoose.model('Review', reviewSchema);
+module.exports = Review;

@@ -1,60 +1,75 @@
 const Event = require('../models/Event');
 const User = require('../models/User');
 const Registration = require('../models/Registration');
+const Review = require('../models/Review');
 const { generateTicketId } = require('../utils/tokenUtils');
 const { generateQRCode } = require('../utils/qrCodeUtils');
 const { sendEventRegistrationEmail } = require('../utils/emailTemplates');
+const { Op, Sequelize } = require('sequelize');
 
 // Get all events
 exports.getAllEvents = async (req, res, next) => {
     try {
-        const { category, search, page = 1, limit = 20, sort = '-createdAt' } = req.query;
+        const { category, search, page = 1, limit = 20, sort = 'createdAt' } = req.query;
 
         const pageNum = parseInt(page);
         const limitNum = parseInt(limit);
-        const skip = (pageNum - 1) * limitNum;
+        const offset = (pageNum - 1) * limitNum;
 
-        let query = { isDeleted: false };
+        let where = {};
 
         if (category && category !== 'all') {
-            query.category = category;
+            where.category = category;
         }
 
         if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
-                { tags: { $in: [new RegExp(search, 'i')] } }
+            where[Op.or] = [
+                { title: { [Op.iLike]: `%${search}%` } },
+                { description: { [Op.iLike]: `%${search}%` } },
+                Sequelize.where(
+                    Sequelize.fn('array_position', Sequelize.col('tags'), search),
+                    Op.gt,
+                    0
+                )
             ];
         }
 
-        const events = await Event.find(query)
-            .populate('organizer', 'firstName lastName email')
-            .sort(sort)
-            .skip(skip)
-            .limit(limitNum)
-            .select('-attendees -registrants');
+        const sortField = sort.startsWith('-') ? sort.substring(1) : sort;
+        const sortOrder = sort.startsWith('-') ? 'DESC' : 'ASC';
 
-        const total = await Event.countDocuments(query);
+        const { count, rows: events } = await Event.findAndCountAll({
+            where,
+            include: [{
+                association: 'organizer',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'email']
+            }],
+            order: [[sortField, sortOrder]],
+            offset,
+            limit: limitNum
+        });
 
         // If user is logged in, add registration status
+        let eventsWithStatus = events;
         if (req.user) {
-            for (let event of events) {
+            eventsWithStatus = await Promise.all(events.map(async (event) => {
                 const registration = await Registration.findOne({
-                    user: req.user.id,
-                    event: event._id
+                    where: { userId: req.user.id, eventId: event.id }
                 });
-                event._doc.isRegistered = !!registration;
-            }
+                return {
+                    ...event.get({ plain: true }),
+                    isRegistered: !!registration
+                };
+            }));
         }
 
         res.json({
             success: true,
             count: events.length,
-            total,
-            pages: Math.ceil(total / limitNum),
+            total: count,
+            pages: Math.ceil(count / limitNum),
             currentPage: pageNum,
-            events
+            events: eventsWithStatus
         });
     } catch (error) {
         next(error);
@@ -66,14 +81,15 @@ exports.getEvent = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const event = await Event.findById(id)
-            .populate('organizer', 'firstName lastName email department')
-            .populate({
-                path: 'registrants',
-                select: 'firstName lastName email'
-            });
+        const event = await Event.findByPk(id, {
+            include: [{
+                association: 'organizer',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'email', 'department']
+            }]
+        });
 
-        if (!event || event.isDeleted) {
+        if (!event) {
             return res.status(404).json({
                 success: false,
                 message: 'Event not found'
@@ -81,16 +97,20 @@ exports.getEvent = async (req, res, next) => {
         }
 
         // Get reviews
-        const Review = require('../models/Review');
-        const reviews = await Review.find({ event: id })
-            .populate('user', 'firstName lastName avatar')
-            .sort('-createdAt');
+        const reviews = await Review.findAll({
+            where: { eventId: id },
+            include: [{
+                association: 'user',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'avatar']
+            }],
+            order: [['createdAt', 'DESC']]
+        });
 
         let isRegistered = false;
         if (req.user) {
             const registration = await Registration.findOne({
-                user: req.user.id,
-                event: id
+                where: { userId: req.user.id, eventId: id }
             });
             isRegistered = !!registration;
         }
@@ -98,7 +118,7 @@ exports.getEvent = async (req, res, next) => {
         res.json({
             success: true,
             event: {
-                ...event.toObject(),
+                ...event.get({ plain: true }),
                 isRegistered,
                 reviews
             }
@@ -139,10 +159,16 @@ exports.createEvent = async (req, res, next) => {
             location,
             capacity,
             tags: tags ? tags.split(',').map(t => t.trim()) : [],
-            organizer: req.user.id
+            organizerId: req.user.id
         });
 
-        const populatedEvent = await event.populate('organizer', 'firstName lastName email');
+        const populatedEvent = await event.reload({
+            include: [{
+                association: 'organizer',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'email']
+            }]
+        });
 
         res.status(201).json({
             success: true,
@@ -160,7 +186,7 @@ exports.updateEvent = async (req, res, next) => {
         const { id } = req.params;
         const { title, description, category, date, time, location, capacity, tags } = req.body;
 
-        let event = await Event.findById(id);
+        let event = await Event.findByPk(id);
 
         if (!event) {
             return res.status(404).json({
@@ -170,7 +196,7 @@ exports.updateEvent = async (req, res, next) => {
         }
 
         // Check authorization
-        if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+        if (event.organizerId !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this event'
@@ -195,7 +221,6 @@ exports.updateEvent = async (req, res, next) => {
         if (capacity) event.capacity = capacity;
         if (tags) event.tags = tags.split(',').map(t => t.trim());
 
-        event.updatedAt = new Date();
         await event.save();
 
         res.json({
@@ -213,7 +238,7 @@ exports.deleteEvent = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const event = await Event.findById(id);
+        const event = await Event.findByPk(id);
 
         if (!event) {
             return res.status(404).json({
@@ -223,16 +248,14 @@ exports.deleteEvent = async (req, res, next) => {
         }
 
         // Check authorization
-        if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+        if (event.organizerId !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to delete this event'
             });
         }
 
-        event.isDeleted = true;
-        event.deletedAt = new Date();
-        await event.save();
+        await event.destroy();
 
         res.json({
             success: true,
@@ -246,18 +269,20 @@ exports.deleteEvent = async (req, res, next) => {
 // Get user's registered events
 exports.getMyEvents = async (req, res, next) => {
     try {
-        const registrations = await Registration.find({ user: req.user.id })
-            .populate({
-                path: 'event',
-                select: '-attendees -registrants'
-            })
-            .sort('-registeredAt');
+        const registrations = await Registration.findAll({
+            where: { userId: req.user.id },
+            include: [{
+                association: 'event',
+                model: Event
+            }],
+            order: [['createdAt', 'DESC']]
+        });
 
         const events = registrations.map(reg => ({
-            ...reg.event.toObject(),
+            ...reg.event.get({ plain: true }),
             registrationStatus: reg.status,
             ticketId: reg.ticketId,
-            registeredAt: reg.registeredAt
+            registeredAt: reg.createdAt
         }));
 
         res.json({

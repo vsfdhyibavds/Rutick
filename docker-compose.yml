@@ -1,28 +1,28 @@
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:8.0-alpine
-    container_name: rutick-mongo
+  postgres:
+    image: postgres:16-alpine
+    container_name: rutick-postgres
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-root}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-changeme_in_production}
-      MONGO_INITDB_DATABASE: rutick
+      POSTGRES_DB: ${DB_NAME:-rutick}
+      POSTGRES_USER: ${DB_USER:-rutick_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rutick_password_change_me}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     cap_add:
-      - NET_BIND_SERVICE
+      - SETFCAPS
     networks:
       - rutick-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rutick_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,7 +46,11 @@ services:
       - "5000:5000"
     environment:
       NODE_ENV: production
-      MONGODB_URI: mongodb://${MONGO_USER:-root}:${MONGO_PASSWORD:-changeme_in_production}@mongodb:27017/rutick?authSource=admin
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-rutick}
+      DB_USER: ${DB_USER:-rutick_user}
+      DB_PASSWORD: ${DB_PASSWORD:-rutick_password_change_me}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRE: ${JWT_EXPIRE:-7d}
       REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}

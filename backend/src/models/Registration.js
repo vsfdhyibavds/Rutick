@@ -1,53 +1,47 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const registrationSchema = new mongoose.Schema({
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-        index: true
+const Registration = sequelize.define('Registration', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
     },
-    event: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Event',
-        required: true,
-        index: true
+    userId: {
+        type: DataTypes.UUID,
+        allowNull: false,
     },
-    registeredAt: {
-        type: Date,
-        default: Date.now,
-        index: true
+    eventId: {
+        type: DataTypes.UUID,
+        allowNull: false,
     },
     ticketId: {
-        type: String,
+        type: DataTypes.STRING,
         unique: true,
-        required: true
+        allowNull: false,
     },
     qrCode: {
-        type: String,
-        default: null
+        type: DataTypes.TEXT,
+        defaultValue: null,
     },
     status: {
-        type: String,
-        enum: ['registered', 'checked-in', 'cancelled'],
-        default: 'registered',
-        index: true
+        type: DataTypes.ENUM('registered', 'checked-in', 'cancelled'),
+        defaultValue: 'registered',
     },
-    checkedInAt: Date,
-    checkedInBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    notes: String,
-    cancelledAt: Date,
-    cancelledReason: String,
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
-}, { timestamps: true });
+    checkedInAt: DataTypes.DATE,
+    checkedInById: DataTypes.UUID,
+    notes: DataTypes.TEXT,
+    cancelledAt: DataTypes.DATE,
+    cancelledReason: DataTypes.TEXT,
+}, {
+    timestamps: true,
+    tableName: 'registrations',
+    indexes: [
+        {
+            unique: true,
+            fields: ['userId', 'eventId']
+        }
+    ]
+});
 
-// Compound index for unique registration per user-event
-registrationSchema.index({ user: 1, event: 1 }, { unique: true });
-
-module.exports = mongoose.model('Registration', registrationSchema);
+module.exports = Registration;

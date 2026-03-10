@@ -11,8 +11,8 @@ exports.registerForEvent = async (req, res, next) => {
         const { eventId } = req.params;
 
         // Check if event exists
-        const event = await Event.findById(eventId);
-        if (!event || event.isDeleted) {
+        const event = await Event.findByPk(eventId);
+        if (!event) {
             return res.status(404).json({
                 success: false,
                 message: 'Event not found'
@@ -29,8 +29,7 @@ exports.registerForEvent = async (req, res, next) => {
 
         // Check if already registered
         const existing = await Registration.findOne({
-            user: req.user.id,
-            event: eventId
+            where: { userId: req.user.id, eventId }
         });
 
         if (existing) {
@@ -45,8 +44,8 @@ exports.registerForEvent = async (req, res, next) => {
         const qrCode = await generateQRCode(ticketId);
 
         const registration = await Registration.create({
-            user: req.user.id,
-            event: eventId,
+            userId: req.user.id,
+            eventId,
             ticketId,
             qrCode,
             status: 'registered'
@@ -54,11 +53,10 @@ exports.registerForEvent = async (req, res, next) => {
 
         // Update event
         event.registeredCount += 1;
-        event.registrants.push(req.user.id);
         await event.save();
 
         // Send confirmation email
-        const user = await User.findById(req.user.id);
+        const user = await User.findByPk(req.user.id);
         try {
             await sendEventRegistrationEmail(user, event);
         } catch (error) {
@@ -69,7 +67,7 @@ exports.registerForEvent = async (req, res, next) => {
             success: true,
             message: 'Registered for event successfully',
             registration: {
-                id: registration._id,
+                id: registration.id,
                 ticketId: registration.ticketId,
                 qrCode: registration.qrCode,
                 status: registration.status
@@ -87,8 +85,7 @@ exports.cancelRegistration = async (req, res, next) => {
         const { reason } = req.body;
 
         const registration = await Registration.findOne({
-            user: req.user.id,
-            event: eventId
+            where: { userId: req.user.id, eventId }
         });
 
         if (!registration) {
@@ -104,9 +101,8 @@ exports.cancelRegistration = async (req, res, next) => {
         await registration.save();
 
         // Update event
-        const event = await Event.findById(eventId);
+        const event = await Event.findByPk(eventId);
         event.registeredCount -= 1;
-        event.registrants = event.registrants.filter(id => id.toString() !== req.user.id);
         await event.save();
 
         res.json({
@@ -124,9 +120,13 @@ exports.getRegistration = async (req, res, next) => {
         const { eventId } = req.params;
 
         const registration = await Registration.findOne({
-            user: req.user.id,
-            event: eventId
-        }).populate('event', 'title date time location');
+            where: { userId: req.user.id, eventId },
+            include: [{
+                association: 'event',
+                model: Event,
+                attributes: ['id', 'title', 'date', 'time', 'location']
+            }]
+        });
 
         if (!registration) {
             return res.status(404).json({
@@ -150,7 +150,7 @@ exports.getEventRegistrations = async (req, res, next) => {
         const { eventId } = req.params;
         const { page = 1, limit = 50, status } = req.query;
 
-        const event = await Event.findById(eventId);
+        const event = await Event.findByPk(eventId);
         if (!event) {
             return res.status(404).json({
                 success: false,
@@ -159,7 +159,7 @@ exports.getEventRegistrations = async (req, res, next) => {
         }
 
         // Check authorization
-        if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+        if (event.organizerId !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized'
@@ -168,23 +168,27 @@ exports.getEventRegistrations = async (req, res, next) => {
 
         const pageNum = parseInt(page);
         const limitNum = parseInt(limit);
-        const skip = (pageNum - 1) * limitNum;
+        const offset = (pageNum - 1) * limitNum;
 
-        let query = { event: eventId };
-        if (status) query.status = status;
+        let where = { eventId };
+        if (status) where.status = status;
 
-        const registrations = await Registration.find(query)
-            .populate('user', 'firstName lastName email studentId')
-            .skip(skip)
-            .limit(limitNum)
-            .sort('-registeredAt');
-
-        const total = await Registration.countDocuments(query);
+        const { count, rows: registrations } = await Registration.findAndCountAll({
+            where,
+            include: [{
+                association: 'user',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'email', 'studentId']
+            }],
+            offset,
+            limit: limitNum,
+            order: [['createdAt', 'DESC']]
+        });
 
         res.json({
             success: true,
             count: registrations.length,
-            total,
+            total: count,
             registrations
         });
     } catch (error) {
@@ -197,7 +201,7 @@ exports.checkInAttendee = async (req, res, next) => {
     try {
         const { registrationId } = req.params;
 
-        const registration = await Registration.findById(registrationId);
+        const registration = await Registration.findByPk(registrationId);
         if (!registration) {
             return res.status(404).json({
                 success: false,
@@ -214,11 +218,11 @@ exports.checkInAttendee = async (req, res, next) => {
 
         registration.status = 'checked-in';
         registration.checkedInAt = new Date();
-        registration.checkedInBy = req.user.id;
+        registration.checkedInById = req.user.id;
         await registration.save();
 
         // Update event
-        const event = await Event.findById(registration.event);
+        const event = await Event.findByPk(registration.eventId);
         event.attendedCount += 1;
         await event.save();
 

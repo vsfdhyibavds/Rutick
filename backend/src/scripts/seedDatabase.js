@@ -5,26 +5,22 @@
  * Usage: npm run seed
  */
 
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
-
+const { sequelize } = require('../config/database');
 const User = require('../models/User');
 const Event = require('../models/Event');
-const connectDB = require('../config/database');
+const Registration = require('../models/Registration');
+const { v4: uuidv4 } = require('uuid');
+
+require('dotenv').config();
 
 const seedDatabase = async () => {
     try {
-        await connectDB();
-
-        // Clear existing data
-        await User.deleteMany({});
-        await Event.deleteMany({});
-
-        console.log('🗑️  Cleared existing data');
+        // Sync database
+        await sequelize.sync({ force: true });
+        console.log('✅ Database synchronized');
 
         // Create sample users
-        const users = await User.create([
+        const users = await User.bulkCreate([
             {
                 firstName: 'John',
                 lastName: 'Doe',
@@ -66,7 +62,7 @@ const seedDatabase = async () => {
         console.log(`✅ Created ${users.length} sample users`);
 
         // Create sample events
-        const events = await Event.create([
+        const events = await Event.bulkCreate([
             {
                 title: 'Computer Science Symposium 2024',
                 description: 'Annual symposium featuring latest research in AI, Machine Learning, and Data Science.',
@@ -75,7 +71,7 @@ const seedDatabase = async () => {
                 time: '09:00',
                 location: 'Main Auditorium',
                 capacity: 200,
-                organizer: users[2]._id,
+                organizerId: users[2].id,
                 tags: ['cs', 'research', 'tech']
             },
             {
@@ -86,7 +82,7 @@ const seedDatabase = async () => {
                 time: '14:00',
                 location: 'University Grounds',
                 capacity: 500,
-                organizer: users[3]._id,
+                organizerId: users[3].id,
                 tags: ['culture', 'festival', 'celebration']
             },
             {
@@ -97,16 +93,40 @@ const seedDatabase = async () => {
                 time: '10:00',
                 location: 'Sports Complex',
                 capacity: 300,
-                organizer: users[3]._id,
+                organizerId: users[3].id,
                 tags: ['career', 'jobs', 'internship']
             }
         ]);
 
         console.log(`✅ Created ${events.length} sample events`);
 
+        // Create sample registrations
+        const registrations = await Registration.bulkCreate([
+            {
+                userId: users[0].id,
+                eventId: events[0].id,
+                ticketId: `TICKET-${uuidv4()}`,
+                status: 'registered'
+            },
+            {
+                userId: users[1].id,
+                eventId: events[1].id,
+                ticketId: `TICKET-${uuidv4()}`,
+                status: 'registered'
+            },
+            {
+                userId: users[0].id,
+                eventId: events[2].id,
+                ticketId: `TICKET-${uuidv4()}`,
+                status: 'registered'
+            }
+        ]);
+
+        console.log(`✅ Created ${registrations.length} sample registrations`);
+
         console.log(`
 ╔════════════════════════════════════════╗
-║   ✅ Database Seeding Complete!         ║
+║   ✅ Database Seeding Complete!        ║
 ╚════════════════════════════════════════╝
 
 Test Credentials:
@@ -124,9 +144,10 @@ ADMIN:
   Password: Admin@123
         `);
 
+        await sequelize.close();
         process.exit(0);
     } catch (error) {
-        console.error('❌ Seeding error:', error);
+        console.error('❌ Seeding error:', error.message);
         process.exit(1);
     }
 };

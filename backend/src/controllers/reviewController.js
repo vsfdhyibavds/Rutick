@@ -1,6 +1,8 @@
 const Review = require('../models/Review');
 const Registration = require('../models/Registration');
 const Event = require('../models/Event');
+const User = require('../models/User');
+const { Op, fn, col } = require('sequelize');
 
 // Create review
 exports.createReview = async (req, res, next) => {
@@ -32,9 +34,7 @@ exports.createReview = async (req, res, next) => {
 
         // Check if user attended the event
         const registration = await Registration.findOne({
-            user: req.user.id,
-            event: eventId,
-            status: 'checked-in'
+            where: { userId: req.user.id, eventId, status: 'checked-in' }
         });
 
         if (!registration) {
@@ -46,8 +46,7 @@ exports.createReview = async (req, res, next) => {
 
         // Check if already reviewed
         const existing = await Review.findOne({
-            user: req.user.id,
-            event: eventId
+            where: { userId: req.user.id, eventId }
         });
 
         if (existing) {
@@ -58,8 +57,8 @@ exports.createReview = async (req, res, next) => {
         }
 
         const review = await Review.create({
-            user: req.user.id,
-            event: eventId,
+            userId: req.user.id,
+            eventId,
             rating,
             title,
             comment,
@@ -67,14 +66,22 @@ exports.createReview = async (req, res, next) => {
         });
 
         // Update event rating
-        const reviews = await Review.find({ event: eventId });
-        const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-        const event = await Event.findById(eventId);
-        event.rating = avgRating;
+        const reviews = await Review.findAll({ where: { eventId } });
+        const avgRating = reviews.length > 0
+            ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length)
+            : 0;
+        const event = await Event.findByPk(eventId);
+        event.rating = Math.round(avgRating * 10) / 10;
         event.reviewCount = reviews.length;
         await event.save();
 
-        const populatedReview = await review.populate('user', 'firstName lastName avatar');
+        const populatedReview = await review.reload({
+            include: [{
+                association: 'user',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'avatar']
+            }]
+        });
 
         res.status(201).json({
             success: true,
@@ -90,25 +97,32 @@ exports.createReview = async (req, res, next) => {
 exports.getEventReviews = async (req, res, next) => {
     try {
         const { eventId } = req.params;
-        const { page = 1, limit = 10, sortBy = '-createdAt' } = req.query;
+        const { page = 1, limit = 10, sortBy = 'createdAt' } = req.query;
 
         const pageNum = parseInt(page);
         const limitNum = parseInt(limit);
-        const skip = (pageNum - 1) * limitNum;
+        const offset = (pageNum - 1) * limitNum;
 
-        const reviews = await Review.find({ event: eventId })
-            .populate('user', 'firstName lastName avatar')
-            .sort(sortBy)
-            .skip(skip)
-            .limit(limitNum);
+        const sortField = sortBy.startsWith('-') ? sortBy.substring(1) : sortBy;
+        const sortOrder = sortBy.startsWith('-') ? 'DESC' : 'ASC';
 
-        const total = await Review.countDocuments({ event: eventId });
+        const { count, rows: reviews } = await Review.findAndCountAll({
+            where: { eventId },
+            include: [{
+                association: 'user',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'avatar']
+            }],
+            order: [[sortField, sortOrder]],
+            offset,
+            limit: limitNum
+        });
 
         res.json({
             success: true,
             count: reviews.length,
-            total,
-            pages: Math.ceil(total / limitNum),
+            total: count,
+            pages: Math.ceil(count / limitNum),
             reviews
         });
     } catch (error) {
@@ -122,7 +136,7 @@ exports.updateReview = async (req, res, next) => {
         const { reviewId } = req.params;
         const { rating, title, comment } = req.body;
 
-        let review = await Review.findById(reviewId);
+        let review = await Review.findByPk(reviewId);
 
         if (!review) {
             return res.status(404).json({
@@ -132,7 +146,7 @@ exports.updateReview = async (req, res, next) => {
         }
 
         // Check authorization
-        if (review.user.toString() !== req.user.id) {
+        if (review.userId !== req.user.id) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this review'
@@ -143,11 +157,77 @@ exports.updateReview = async (req, res, next) => {
         if (title) review.title = title;
         if (comment) review.comment = comment;
 
-        review.updatedAt = new Date();
         await review.save();
 
         res.json({
             success: true,
+            message: 'Review updated successfully',
+            review
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Delete review
+exports.deleteReview = async (req, res, next) => {
+    try {
+        const { reviewId } = req.params;
+
+        const review = await Review.findByPk(reviewId);
+
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        // Check authorization
+        if (review.userId !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this review'
+            });
+        }
+
+        await review.destroy();
+
+        res.json({
+            success: true,
+            message: 'Review deleted successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Like review
+exports.likeReview = async (req, res, next) => {
+    try {
+        const { reviewId } = req.params;
+
+        const review = await Review.findByPk(reviewId);
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: 'Review not found'
+            });
+        }
+
+        review.likes += 1;
+        await review.save();
+
+        res.json({
+            success: true,
+            message: 'Review liked',
+            likes: review.likes
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
             message: 'Review updated successfully',
             review
         });

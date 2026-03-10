@@ -1,46 +1,52 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const certificateSchema = new mongoose.Schema({
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+const Certificate = sequelize.define('Certificate', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
     },
-    event: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Event',
-        required: true
+    userId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+    },
+    eventId: {
+        type: DataTypes.UUID,
+        allowNull: false,
     },
     certificateId: {
-        type: String,
+        type: DataTypes.STRING,
         unique: true,
-        required: true
+        allowNull: false,
     },
     title: {
-        type: String,
-        required: true
+        type: DataTypes.STRING,
+        allowNull: false,
     },
     issueDate: {
-        type: Date,
-        default: Date.now
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
     },
-    expiryDate: Date,
+    expiryDate: DataTypes.DATE,
     fileUrl: {
-        type: String,
-        required: true
+        type: DataTypes.STRING,
+        allowNull: false,
     },
     status: {
-        type: String,
-        enum: ['issued', 'revoked'],
-        default: 'issued'
+        type: DataTypes.ENUM('issued', 'revoked'),
+        defaultValue: 'issued',
     },
-    notes: String,
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
-}, { timestamps: true });
+    notes: DataTypes.TEXT,
+}, {
+    timestamps: true,
+    tableName: 'certificates',
+    indexes: [
+        {
+            unique: true,
+            fields: ['userId', 'eventId']
+        }
+    ]
+});
 
-certificateSchema.index({ user: 1, event: 1 }, { unique: true });
-
-module.exports = mongoose.model('Certificate', certificateSchema);
+module.exports = Certificate;

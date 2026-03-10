@@ -1,13 +1,16 @@
 const User = require('../models/User');
 const Registration = require('../models/Registration');
-const Event = require('../models/Event');
+const Certificate = require('../models/Certificate');
+const { Op } = require('sequelize');
 
 // Get user profile
 exports.getUserProfile = async (req, res, next) => {
     try {
         const { userId } = req.params;
 
-        const user = await User.findById(userId).select('-password');
+        const user = await User.findByPk(userId, {
+            attributes: { exclude: ['password'] }
+        });
 
         if (!user) {
             return res.status(404).json({
@@ -17,16 +20,20 @@ exports.getUserProfile = async (req, res, next) => {
         }
 
         // Get user stats
-        const registrations = await Registration.countDocuments({ user: userId, status: 'registered' });
-        const attendance = await Registration.countDocuments({ user: userId, status: 'checked-in' });
-
-        const Certificate = require('../models/Certificate');
-        const certificates = await Certificate.countDocuments({ user: userId, status: 'issued' });
+        const registrations = await Registration.count({
+            where: { userId, status: 'registered' }
+        });
+        const attendance = await Registration.count({
+            where: { userId, status: 'checked-in' }
+        });
+        const certificates = await Certificate.count({
+            where: { userId, status: 'issued' }
+        });
 
         res.json({
             success: true,
             user: {
-                ...user.toObject(),
+                ...user.get({ plain: true }),
                 stats: {
                     registeredEvents: registrations,
                     attendedEvents: attendance,
@@ -44,7 +51,7 @@ exports.updateUserProfile = async (req, res, next) => {
     try {
         const { firstName, lastName, bio, phone, department, avatar } = req.body;
 
-        let user = await User.findById(req.user.id);
+        let user = await User.findByPk(req.user.id);
 
         if (!user) {
             return res.status(404).json({
@@ -60,14 +67,13 @@ exports.updateUserProfile = async (req, res, next) => {
         if (department) user.department = department;
         if (avatar) user.avatar = avatar;
 
-        user.updatedAt = new Date();
         await user.save();
 
         res.json({
             success: true,
             message: 'Profile updated successfully',
             user: {
-                id: user._id,
+                id: user.id,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 email: user.email,
@@ -108,7 +114,7 @@ exports.changePassword = async (req, res, next) => {
             });
         }
 
-        const user = await User.findById(req.user.id).select('+password');
+        const user = await User.findByPk(req.user.id);
 
         const isMatch = await user.comparePassword(currentPassword);
         if (!isMatch) {
@@ -135,12 +141,14 @@ exports.getAttendanceRecord = async (req, res, next) => {
     try {
         const { userId } = req.params;
 
-        const registrations = await Registration.find({ user: userId, status: 'checked-in' })
-            .populate({
-                path: 'event',
-                select: 'title date location -attendees -registrants'
-            })
-            .sort('-checkedInAt');
+        const registrations = await Registration.findAll({
+            where: { userId, status: 'checked-in' },
+            include: [{
+                association: 'event',
+                attributes: ['id', 'title', 'date', 'location']
+            }],
+            order: [['checkedInAt', 'DESC']]
+        });
 
         res.json({
             success: true,

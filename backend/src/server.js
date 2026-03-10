@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const connectDB = require('./config/database');
+const { connectDB } = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
 const { scheduleReminders } = require('./utils/reminderScheduler');
 

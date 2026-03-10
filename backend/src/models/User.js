@@ -1,103 +1,117 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
+const { sequelize } = require('../config/database');
 
-const userSchema = new mongoose.Schema({
+const User = sequelize.define('User', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+    },
     firstName: {
-        type: String,
-        required: [true, 'Please provide first name'],
-        trim: true,
-        maxlength: 50
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+        }
     },
     lastName: {
-        type: String,
-        required: [true, 'Please provide last name'],
-        trim: true,
-        maxlength: 50
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+        }
     },
     email: {
-        type: String,
-        required: [true, 'Please provide email'],
+        type: DataTypes.STRING,
+        allowNull: false,
         unique: true,
         lowercase: true,
-        match: [/^[\w-\.]+@riarauniversity\.ac\.ke$/, 'Please use university email'],
-        index: true
+        validate: {
+            isEmail: true,
+            is: /^[\w-\.]+@riarauniversity\.ac\.ke$/,
+        }
     },
     studentId: {
-        type: String,
-        required: [true, 'Please provide student/staff ID'],
+        type: DataTypes.STRING,
+        allowNull: false,
         unique: true,
-        uppercase: true
     },
     department: {
-        type: String,
-        enum: ['Computer Science', 'Business', 'Engineering', 'Arts', 'Sciences', 'Other'],
-        required: true
+        type: DataTypes.ENUM('Computer Science', 'Business', 'Engineering', 'Arts', 'Sciences', 'Other'),
+        allowNull: false,
     },
     role: {
-        type: String,
-        enum: ['student', 'staff', 'admin'],
-        default: 'student'
+        type: DataTypes.ENUM('student', 'staff', 'admin'),
+        defaultValue: 'student',
     },
     password: {
-        type: String,
-        required: [true, 'Please provide password'],
-        minlength: 8,
-        select: false
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            len: [8, 255],
+        }
     },
     avatar: {
-        type: String,
-        default: null
+        type: DataTypes.STRING,
+        defaultValue: null,
     },
     bio: {
-        type: String,
-        maxlength: 500
+        type: DataTypes.STRING(500),
     },
     phone: {
-        type: String,
-        match: [/^\+?[\d\s\-\(\)]{10,}$/, 'Please provide valid phone number']
+        type: DataTypes.STRING,
+        validate: {
+            is: /^\+?[\d\s\-\(\)]{10,}$/,
+        }
     },
     isEmailVerified: {
-        type: Boolean,
-        default: false
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
     },
-    emailVerificationToken: String,
-    emailVerificationExpires: Date,
-    passwordResetToken: String,
-    passwordResetExpires: Date,
-    createdAt: {
-        type: Date,
-        default: Date.now,
-        index: true
-    },
-    updatedAt: Date,
-    lastLogin: Date,
+    emailVerificationToken: DataTypes.STRING,
+    emailVerificationExpires: DataTypes.DATE,
+    passwordResetToken: DataTypes.STRING,
+    passwordResetExpires: DataTypes.DATE,
+    lastLogin: DataTypes.DATE,
     isActive: {
-        type: Boolean,
-        default: true
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
     }
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    tableName: 'users',
+});
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
+User.beforeCreate(async (user) => {
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(user.password, salt);
+});
 
-    try {
+User.beforeUpdate(async (user) => {
+    if (user.changed('password')) {
         const salt = await bcrypt.genSalt(10);
-        this.password = await bcrypt.hash(this.password, salt);
-        next();
-    } catch (error) {
-        next(error);
+        user.password = await bcrypt.hash(user.password, salt);
     }
 });
 
 // Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
+User.prototype.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Method to generate email verification token
-userSchema.methods.generateEmailVerificationToken = function() {
-    const resetToken = require('crypto').randomBytes(20).toString('hex');
+User.prototype.generateEmailVerificationToken = function() {
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    this.emailVerificationToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+    return resetToken;
+};
+
+module.exports = User;
+
     this.emailVerificationToken = require('crypto')
         .createHash('sha256')
         .update(resetToken)

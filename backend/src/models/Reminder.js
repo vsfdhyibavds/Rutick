@@ -1,43 +1,40 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const reminderSchema = new mongoose.Schema({
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-        index: true
+const Reminder = sequelize.define('Reminder', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
     },
-    event: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Event',
-        required: true
+    userId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+    },
+    eventId: {
+        type: DataTypes.UUID,
+        allowNull: false,
     },
     reminderType: {
-        type: String,
-        enum: ['24h-before', '1h-before', 'day-of'],
-        default: '24h-before'
+        type: DataTypes.ENUM('24h-before', '1h-before', 'day-of'),
+        defaultValue: '24h-before',
     },
     scheduledFor: {
-        type: Date,
-        required: true,
-        index: true
+        type: DataTypes.DATE,
+        allowNull: false,
     },
-    sentAt: Date,
+    sentAt: DataTypes.DATE,
     status: {
-        type: String,
-        enum: ['pending', 'sent', 'failed'],
-        default: 'pending',
-        index: true
+        type: DataTypes.ENUM('pending', 'sent', 'failed'),
+        defaultValue: 'pending',
     },
     method: {
-        type: String,
-        enum: ['email', 'sms'],
-        default: 'email'
+        type: DataTypes.ENUM('email', 'sms'),
+        defaultValue: 'email',
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    tableName: 'reminders',
+});
 
-module.exports = mongoose.model('Reminder', reminderSchema);
+module.exports = Reminder;

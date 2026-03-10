@@ -1,103 +1,106 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 
-const eventSchema = new mongoose.Schema({
+const Event = sequelize.define('Event', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+    },
     title: {
-        type: String,
-        required: [true, 'Please provide event title'],
-        trim: true,
-        maxlength: 200,
-        index: true
+        type: DataTypes.STRING(200),
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+        }
     },
     description: {
-        type: String,
-        required: [true, 'Please provide event description'],
-        maxlength: 2000
+        type: DataTypes.TEXT,
+        allowNull: false,
+        validate: {
+            len: [1, 2000],
+        }
     },
     category: {
-        type: String,
-        enum: ['academic', 'social', 'administrative', 'sports', 'cultural'],
-        required: true,
-        index: true
+        type: DataTypes.ENUM('academic', 'social', 'administrative', 'sports', 'cultural'),
+        allowNull: false,
     },
     date: {
-        type: Date,
-        required: [true, 'Please provide event date'],
-        index: true
+        type: DataTypes.DATE,
+        allowNull: false,
     },
     time: {
-        type: String,
-        required: [true, 'Please provide event time'],
-        match: [/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please provide time in HH:MM format']
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            is: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+        }
     },
     duration: {
-        type: Number,
-        default: 120 // minutes
+        type: DataTypes.INTEGER,
+        defaultValue: 120, // minutes
     },
     location: {
-        type: String,
-        required: [true, 'Please provide event location'],
-        index: true
+        type: DataTypes.STRING,
+        allowNull: false,
     },
     capacity: {
-        type: Number,
-        required: [true, 'Please provide event capacity'],
-        min: 1,
-        max: 10000
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        validate: {
+            min: 1,
+            max: 10000,
+        }
     },
     registeredCount: {
-        type: Number,
-        default: 0,
-        min: 0
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        validate: {
+            min: 0,
+        }
     },
     attendedCount: {
-        type: Number,
-        default: 0,
-        min: 0
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        validate: {
+            min: 0,
+        }
     },
-    organizer: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+    organizerId: {
+        type: DataTypes.UUID,
+        allowNull: false,
     },
     banner: {
-        type: String,
-        default: null
+        type: DataTypes.STRING,
+        defaultValue: null,
     },
     rating: {
-        type: Number,
-        default: 0,
-        min: 0,
-        max: 5,
-        set: function(val) {
-            return Math.round(val * 10) / 10;
+        type: DataTypes.DECIMAL(2, 1),
+        defaultValue: 0,
+        validate: {
+            min: 0,
+            max: 5,
         }
     },
     reviewCount: {
-        type: Number,
-        default: 0
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
     },
-    tags: [{
-        type: String,
-        lowercase: true,
-        trim: true
-    }],
+    tags: {
+        type: DataTypes.ARRAY(DataTypes.STRING),
+        defaultValue: [],
+    },
     status: {
-        type: String,
-        enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
-        default: 'upcoming'
-    },
-    registrants: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    }],
-    attendees: [{
-        user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        },
-        checkedInAt: {
-            type: Date,
-            default: Date.now
+        type: DataTypes.ENUM('upcoming', 'ongoing', 'completed', 'cancelled'),
+        defaultValue: 'upcoming',
+    }
+}, {
+    timestamps: true,
+    tableName: 'events',
+});
+
+module.exports = Event;
+
         },
         checkedInBy: {
             type: mongoose.Schema.Types.ObjectId,

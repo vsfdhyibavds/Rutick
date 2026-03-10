@@ -12,9 +12,7 @@ exports.generateCertificate = async (req, res, next) => {
 
         // Check if user attended
         const registration = await Registration.findOne({
-            user: req.user.id,
-            event: eventId,
-            status: 'checked-in'
+            where: { userId: req.user.id, eventId, status: 'checked-in' }
         });
 
         if (!registration) {
@@ -26,8 +24,7 @@ exports.generateCertificate = async (req, res, next) => {
 
         // Check if certificate already exists
         const existing = await Certificate.findOne({
-            user: req.user.id,
-            event: eventId
+            where: { userId: req.user.id, eventId }
         });
 
         if (existing) {
@@ -38,22 +35,20 @@ exports.generateCertificate = async (req, res, next) => {
             });
         }
 
-        const event = await Event.findById(eventId);
-        const user = await User.findById(req.user.id);
+        const event = await Event.findByPk(eventId);
+        const user = await User.findByPk(req.user.id);
 
         const certificateId = generateCertificateId();
 
         // Generate certificate (simple placeholder for now - integrate with proper PDF generation later)
-        const certificateData = {
-            user: req.user.id,
-            event: eventId,
+        const certificate = await Certificate.create({
+            userId: req.user.id,
+            eventId,
             certificateId,
             title: `Certificate of Participation - ${event.title}`,
             fileUrl: `/certificates/${certificateId}.pdf`, // Placeholder
             status: 'issued'
-        };
-
-        const certificate = await Certificate.create(certificateData);
+        });
 
         // Send certificate email
         try {
@@ -77,9 +72,15 @@ exports.getUserCertificates = async (req, res, next) => {
     try {
         const { userId } = req.params;
 
-        const certificates = await Certificate.find({ user: userId, status: 'issued' })
-            .populate('event', 'title date -attendees -registrants')
-            .sort('-issueDate');
+        const certificates = await Certificate.findAll({
+            where: { userId, status: 'issued' },
+            include: [{
+                association: 'event',
+                model: Event,
+                attributes: ['id', 'title', 'date']
+            }],
+            order: [['issueDate', 'DESC']]
+        });
 
         res.json({
             success: true,
@@ -96,9 +97,21 @@ exports.getCertificate = async (req, res, next) => {
     try {
         const { certificateId } = req.params;
 
-        const certificate = await Certificate.findOne({ certificateId, status: 'issued' })
-            .populate('user', 'firstName lastName')
-            .populate('event', 'title date location');
+        const certificate = await Certificate.findOne({
+            where: { certificateId, status: 'issued' },
+            include: [
+                {
+                    association: 'user',
+                    model: User,
+                    attributes: ['id', 'firstName', 'lastName']
+                },
+                {
+                    association: 'event',
+                    model: Event,
+                    attributes: ['id', 'title', 'date', 'location']
+                }
+            ]
+        });
 
         if (!certificate) {
             return res.status(404).json({
@@ -121,7 +134,7 @@ exports.getEventCertificates = async (req, res, next) => {
     try {
         const { eventId } = req.params;
 
-        const event = await Event.findById(eventId);
+        const event = await Event.findByPk(eventId);
         if (!event) {
             return res.status(404).json({
                 success: false,
@@ -130,16 +143,22 @@ exports.getEventCertificates = async (req, res, next) => {
         }
 
         // Check authorization
-        if (event.organizer.toString() !== req.user.id && req.user.role !== 'admin') {
+        if (event.organizerId !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized'
             });
         }
 
-        const certificates = await Certificate.find({ event: eventId, status: 'issued' })
-            .populate('user', 'firstName lastName email')
-            .sort('-issueDate');
+        const certificates = await Certificate.findAll({
+            where: { eventId, status: 'issued' },
+            include: [{
+                association: 'user',
+                model: User,
+                attributes: ['id', 'firstName', 'lastName', 'email']
+            }],
+            order: [['issueDate', 'DESC']]
+        });
 
         res.json({
             success: true,
@@ -148,6 +167,46 @@ exports.getEventCertificates = async (req, res, next) => {
         });
     } catch (error) {
         next(error);
+    }
+};
+
+// Revoke certificate
+exports.revokeCertificate = async (req, res, next) => {
+    try {
+        const { certificateId } = req.params;
+
+        const certificate = await Certificate.findOne({
+            where: { certificateId, status: 'issued' }
+        });
+
+        if (!certificate) {
+            return res.status(404).json({
+                success: false,
+                message: 'Certificate not found'
+            });
+        }
+
+        // Check authorization
+        const event = await Event.findByPk(certificate.eventId);
+        if (event.organizerId !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized'
+            });
+        }
+
+        certificate.status = 'revoked';
+        await certificate.save();
+
+        res.json({
+            success: true,
+            message: 'Certificate revoked successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
     }
 };
 
