@@ -4,10 +4,13 @@ A comprehensive event management platform for Riara University, designed to stre
 
 **Last Updated:** March 14, 2026 | **Version:** 1.0.0 | **Status:** Production Ready
 
+⚠️ **IMPORTANT:** This project uses **PostgreSQL** (not MongoDB) as the database with Sequelize ORM.
+👉 **[See POSTGRES_SETUP.md for PostgreSQL-specific setup instructions](POSTGRES_SETUP.md)**
+
 ## 💻 Minimum Requirements
 
 - **Node.js 14+** (test with `node --version`)
-- **MongoDB 4.4+** (local or cloud)
+- **PostgreSQL 12+** (local or cloud)
 - **npm 6+** (comes with Node.js)
 - **2GB RAM, 500MB disk space**
 
@@ -120,8 +123,12 @@ python -m http.server 8000
 PORT=5000
 NODE_ENV=development
 
-# Database
-MONGODB_URI=mongodb://localhost:27017/rutick
+# Database (PostgreSQL)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=rutick
+DB_USER=postgres
+DB_PASSWORD=your_postgres_password
 
 # JWT
 JWT_SECRET=your_super_secret_key_here
@@ -268,7 +275,7 @@ npm run build  # (if using build tools)
 
 ## 📦 Database Schema
 
-### Collections
+### Tables (PostgreSQL via Sequelize ORM)
 
 - **users** - User accounts and profiles
 - **events** - Event information
@@ -382,7 +389,7 @@ python -m http.server 8000
 2. Install with default options
 3. Verify: `git --version`
 
-### 3. Install MongoDB (Choose One)
+### 3. Install PostgreSQL (Choose One)
 
 #### Option A: Docker Desktop (Recommended)
 
@@ -392,18 +399,19 @@ python -m http.server 8000
 docker --version
 ```
 
-#### Option B: Local MongoDB
+#### Option B: Local PostgreSQL
 
 ```cmd
-# Download: https://www.mongodb.com/try/download/community
-# Install MSI with defaults
-mongod --version
+# Download: https://www.postgresql.org/download/
+# Install with defaults
+psql --version
 ```
 
-#### Option C: MongoDB Atlas (Cloud)
+#### Option C: PostgreSQL Cloud (Heroku, AWS RDS, etc.)
 
-1. Create free account: https://www.mongodb.com/cloud/atlas
-2. Create cluster and get connection string
+1. Create account on Heroku or AWS RDS
+2. Create PostgreSQL database instance
+3. Get connection string
 
 ### 4. Quick Start
 
@@ -414,10 +422,10 @@ node setup-env-generator.js
 # Run setup script
 setup.bat
 
-# Edit backend\.env file
+# Edit backend\.env file with PostgreSQL credentials
 
-# Terminal 1: MongoDB
-docker run -p 27017:27017 --name rutick-mongo mongo:7.0
+# Terminal 1: PostgreSQL
+docker run -p 5432:5432 --name rutick-postgres -e POSTGRES_PASSWORD=postgres postgres:16
 
 # Terminal 2: Backend
 cd backend
@@ -667,7 +675,11 @@ Edit with production values:
 ```env
 NODE_ENV=production
 PORT=5000
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/rutick
+DB_HOST=your-postgres-host.com
+DB_PORT=5432
+DB_NAME=rutick
+DB_USER=postgres_user
+DB_PASSWORD=strong_postgres_password
 JWT_SECRET=your_very_long_secret_key_here
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
