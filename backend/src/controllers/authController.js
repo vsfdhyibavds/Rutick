@@ -302,156 +302,6 @@ exports.logout = async (req, res, next) => {
             success: true,
             message: 'Logged out successfully'
         });
-                department: user.department,
-                avatar: user.avatar
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// Refresh token
-exports.refreshToken = async (req, res, next) => {
-    try {
-        const { refreshToken } = req.body;
-
-        if (!refreshToken) {
-            return res.status(400).json({
-                success: false,
-                message: 'Refresh token required'
-            });
-        }
-
-        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-        const user = await User.findById(decoded.id);
-
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        const token = generateJWT({ id: user._id, role: user.role });
-
-        res.json({
-            success: true,
-            token
-        });
-    } catch (error) {
-        return res.status(401).json({
-            success: false,
-            message: 'Invalid refresh token'
-        });
-    }
-};
-
-// Forgot password
-exports.forgotPassword = async (req, res, next) => {
-    try {
-        const { email } = req.body;
-
-        const user = await User.findOne({ email: email.toLowerCase() });
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        const resetToken = user.generatePasswordResetToken();
-        await user.save({ validateBeforeSave: false });
-
-        // Send reset email
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-        const html = `
-            <h2>Password Reset Request</h2>
-            <p>You requested a password reset. Click the link below to reset your password:</p>
-            <a href="${resetUrl}">Reset Password</a>
-            <p>This link expires in 30 minutes.</p>
-        `;
-
-        try {
-            await sendEmail(user.email, 'Password Reset Request', html);
-        } catch (error) {
-            user.passwordResetToken = undefined;
-            user.passwordResetExpires = undefined;
-            await user.save({ validateBeforeSave: false });
-            return res.status(500).json({
-                success: false,
-                message: 'Email could not be sent'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Password reset email sent'
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// Reset password
-exports.resetPassword = async (req, res, next) => {
-    try {
-        const { token } = req.params;
-        const { password, confirmPassword } = req.body;
-
-        if (!password || !confirmPassword) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide password and confirmation'
-            });
-        }
-
-        if (password !== confirmPassword) {
-            return res.status(400).json({
-                success: false,
-                message: 'Passwords do not match'
-            });
-        }
-
-        // Hash token
-        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-        const user = await User.findOne({
-            passwordResetToken: hashedToken,
-            passwordResetExpires: { $gt: Date.now() }
-        });
-
-        if (!user) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid or expired reset token'
-            });
-        }
-
-        user.password = password;
-        user.passwordResetToken = undefined;
-        user.passwordResetExpires = undefined;
-        await user.save();
-
-        const newToken = generateJWT({ id: user._id, role: user.role });
-
-        res.json({
-            success: true,
-            message: 'Password reset successful',
-            token: newToken
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// Logout
-exports.logout = async (req, res, next) => {
-    try {
-        res.json({
-            success: true,
-            message: 'Logged out successfully'
-        });
     } catch (error) {
         next(error);
     }
@@ -460,7 +310,9 @@ exports.logout = async (req, res, next) => {
 // Get current user
 exports.getMe = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findByPk(req.user.id, {
+            attributes: { exclude: ['password'] }
+        });
 
         res.json({
             success: true,
