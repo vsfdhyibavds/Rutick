@@ -100,32 +100,3 @@ const Event = sequelize.define('Event', {
 });
 
 module.exports = Event;
-
-        },
-        checkedInBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        }
-    }],
-    createdAt: {
-        type: Date,
-        default: Date.now,
-        index: true
-    },
-    updatedAt: Date,
-    deletedAt: Date,
-    isDeleted: {
-        type: Boolean,
-        default: false
-    }
-}, { timestamps: true });
-
-// Index for searching events
-eventSchema.index({ title: 'text', description: 'text', tags: 'text' });
-
-// Update status based on date
-eventSchema.pre('find', function() {
-    this.select('-isDeleted -deletedAt');
-});
-
-module.exports = mongoose.model('Event', eventSchema);

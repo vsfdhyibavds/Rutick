@@ -111,24 +111,3 @@ User.prototype.generateEmailVerificationToken = function() {
 };
 
 module.exports = User;
-
-    this.emailVerificationToken = require('crypto')
-        .createHash('sha256')
-        .update(resetToken)
-        .digest('hex');
-    this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    return resetToken;
-};
-
-// Method to generate password reset token
-userSchema.methods.generatePasswordResetToken = function() {
-    const resetToken = require('crypto').randomBytes(20).toString('hex');
-    this.passwordResetToken = require('crypto')
-        .createHash('sha256')
-        .update(resetToken)
-        .digest('hex');
-    this.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
-    return resetToken;
-};
-
-module.exports = mongoose.model('User', userSchema);

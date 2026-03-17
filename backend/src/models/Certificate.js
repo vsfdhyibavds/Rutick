@@ -44,9 +44,10 @@ const Certificate = sequelize.define('Certificate', {
     indexes: [
         {
             unique: true,
-            fields: ['userId', 'eventId']
+            fields: ['user_id', 'event_id']
         }
-    ]
+    ],
+    underscored: true
 });
 
 module.exports = Certificate;

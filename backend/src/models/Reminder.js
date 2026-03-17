@@ -35,6 +35,7 @@ const Reminder = sequelize.define('Reminder', {
 }, {
     timestamps: true,
     tableName: 'reminders',
+    underscored: true
 });
 
 module.exports = Reminder;

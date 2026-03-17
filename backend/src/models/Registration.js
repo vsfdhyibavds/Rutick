@@ -39,9 +39,10 @@ const Registration = sequelize.define('Registration', {
     indexes: [
         {
             unique: true,
-            fields: ['userId', 'eventId']
+            fields: ['user_id', 'event_id']
         }
-    ]
+    ],
+    underscored: true
 });
 
 module.exports = Registration;

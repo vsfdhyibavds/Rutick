@@ -9,6 +9,7 @@ const { sequelize } = require('../config/database');
 const User = require('../models/User');
 const Event = require('../models/Event');
 const Registration = require('../models/Registration');
+require('../models'); // Load all associations
 const { v4: uuidv4 } = require('uuid');
 
 require('dotenv').config();
@@ -44,7 +45,7 @@ const seedDatabase = async () => {
                 lastName: 'User',
                 email: 'admin@riarauniversity.ac.ke',
                 studentId: 'ADMIN001',
-                department: 'Administration',
+                department: 'Other',
                 password: 'Admin@123',
                 role: 'admin'
             },
@@ -53,7 +54,7 @@ const seedDatabase = async () => {
                 lastName: 'Member',
                 email: 'staff@riarauniversity.ac.ke',
                 studentId: 'STAFF001',
-                department: 'Student Affairs',
+                department: 'Other',
                 password: 'Staff@123',
                 role: 'staff'
             }
