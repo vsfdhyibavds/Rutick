@@ -228,20 +228,12 @@ exports.likeReview = async (req, res, next) => {
     }
 };
 
-            message: 'Review updated successfully',
-            review
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
 // Delete review
 exports.deleteReview = async (req, res, next) => {
     try {
         const { reviewId } = req.params;
 
-        const review = await Review.findById(reviewId);
+        const review = await Review.findByPk(reviewId);
 
         if (!review) {
             return res.status(404).json({
@@ -251,25 +243,24 @@ exports.deleteReview = async (req, res, next) => {
         }
 
         // Check authorization
-        if (review.user.toString() !== req.user.id && req.user.role !== 'admin') {
+        if (review.userId !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to delete this review'
             });
         }
 
-        await Review.findByIdAndDelete(reviewId);
+        await Review.destroy({ where: { id: reviewId } });
 
         // Update event rating
-        const reviews = await Review.find({ event: review.event });
-        const event = await Event.findById(review.event);
+        const reviews = await Review.findAll({ where: { eventId: review.eventId } });
+        const event = await Event.findByPk(review.eventId);
         if (reviews.length > 0) {
             const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
             event.rating = avgRating;
         } else {
             event.rating = 0;
         }
-        event.reviewCount = reviews.length;
         await event.save();
 
         res.json({
@@ -286,7 +277,7 @@ exports.likeReview = async (req, res, next) => {
     try {
         const { reviewId } = req.params;
 
-        const review = await Review.findById(reviewId);
+        const review = await Review.findByPk(reviewId);
 
         if (!review) {
             return res.status(404).json({
