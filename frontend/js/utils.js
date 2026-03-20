@@ -181,6 +181,37 @@ function throttle(func, limit) {
     };
 }
 
+// Security utilities
+function checkSecurityHeaders() {
+    // This would be called after backend API is set up
+    // In production environment, verify:
+    // - Content-Security-Policy header
+    // - X-XSS-Protection header
+    // - X-Frame-Options header
+    // - X-Content-Type-Options header
+    // - Strict-Transport-Security header
+    console.log('🔒 Security headers check would run in production');
+}
+
+// Get CSRF token (mock for development)
+function getCsrfToken() {
+    // In production: retrieve from secure server response
+    // Token should be httpOnly cookie, never in localStorage
+    return 'csrf_token_' + Date.now();
+}
+
+// Set up form submission handlers for security
+function setupFormHandlers() {
+    const loginForm = document.getElementById('loginTab');
+    if (loginForm) {
+        document.addEventListener('keypress', function(e) {
+            if ((e.key === 'Enter') && (document.activeElement.id === 'loginPassword')) {
+                login();
+            }
+        });
+    }
+}
+
 // Export utilities
 window.showNotification = showNotification;
 window.showLoading = showLoading;
@@ -189,3 +220,6 @@ window.formatTime = formatTime;
 window.validateEmail = validateEmail;
 window.validatePassword = validatePassword;
 window.SafeStorage = SafeStorage;
+window.checkSecurityHeaders = checkSecurityHeaders;
+window.getCsrfToken = getCsrfToken;
+window.setupFormHandlers = setupFormHandlers;

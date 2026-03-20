@@ -4,20 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tanga Tunga- Riara University Event Management</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles/style.css">
 </head>
 <body>
     <div class="container">
+        <!-- Home Page -->
         <div id="homePage" class="home-page">
             <div class="home-header">
-                <h1>Tanga Tunga</h1>
+                <h1>Tanga Tunga </h1>
                 <div class="subtitle">Riara University Event Management System</div>
                 <div class="tagline">Your Gateway to Campus Events</div>
             </div>
 
             <div class="hero-section">
                 <h2>Welcome to Tanga Tunga</h2>
-                <p>Tanga Tunga is Riara University's comprehensive event management platform...</p>
+                <p>
+                    Tanga Tunga is Riara University's comprehensive event management platform designed to streamline
+                    the way students, faculty, and staff discover, register, and participate in campus events.
+                    From academic seminars to social gatherings, Tanga Tunga makes event management effortless and engaging.
+                </p>
                 <button class="get-started-btn" onclick="goToAuth()">Get Started →</button>
             </div>
 
@@ -25,11 +30,68 @@
                 <div class="feature-card">
                     <div class="feature-icon">🎫</div>
                     <h3>Easy Registration</h3>
-                    <p>RSVP to events with a single click and receive instant confirmation.</p>
+                    <p>RSVP to events with a single click and receive instant confirmation with your unique QR code ticket.</p>
                 </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⏰</div>
+                    <h3>Smart Reminders</h3>
+                    <p>Get automatic reminders before events so you never miss an important session.</p>
                 </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <h3>Calendar Integration</h3>
+                    <p>View all your events in a beautiful calendar and export to Google Calendar or iCal.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📸</div>
+                    <h3>Photo Galleries</h3>
+                    <p>Browse event photos and relive memorable moments from past university events.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⭐</div>
+                    <h3>Event Reviews</h3>
+                    <p>Rate and review events to help others discover great experiences.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">✅</div>
+                    <h3>Attendance Tracking</h3>
+                    <p>Scan QR codes for instant check-in and earn certificates for completed events.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Analytics Dashboard</h3>
+                    <p>Track your event participation and view detailed attendance statistics.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🏆</div>
+                    <h3>Certificates</h3>
+                    <p>Receive digital certificates for attended events to boost your resume.</p>
+                </div>
+            </div>
+
+            <div class="hero-section">
+                <h2>How Tanga Tunga Works</h2>
+                <p style="text-align: left; max-width: 700px;">
+                    <strong>1. Create Your Account:</strong> Register with your Riara University email address.<br><br>
+                    <strong>2. Browse Events:</strong> Explore academic, social, and administrative events.<br><br>
+                    <strong>3. RSVP & Get Your Ticket:</strong> Register and receive a unique QR code instantly.<br><br>
+                    <strong>4. Set Reminders:</strong> Get notified before events start.<br><br>
+                    <strong>5. Attend Events:</strong> Show your QR code for quick check-in.<br><br>
+                    <strong>6. Rate & Review:</strong> Share your experience and help others.<br><br>
+                    <strong>7. Earn Certificates:</strong> Build your achievement portfolio!
+                </p>
+                <button class="get-started-btn" onclick="goToAuth()" style="margin-top: 30px;">Join Tanga Tunga Now →</button>
+            </div>
         </div>
 
+        <!-- Auth and Main Content Pages -->
         <div id="appPages" style="display: none;">
             <header>
                 <div class="logo">
@@ -37,21 +99,199 @@
                     <p>Riara University Event Management</p>
                 </div>
                 <div class="user-info" id="userInfo" style="display: none;">
+                    <div>
+                        <div style="font-weight: bold;" id="userName"></div>
+                        <div style="font-size: 12px; color: #666;" id="userRole"></div>
+                    </div>
                     <div class="user-avatar" id="userAvatar"></div>
                     <button class="logout-btn" onclick="logout()">Logout</button>
                 </div>
             </header>
 
+            <!-- Authentication Section -->
             <div class="auth-section" id="authSection">
                 <button class="back-btn" onclick="goToHome()">← Back to Home</button>
                 <div class="tabs">
                     <button class="tab active" onclick="switchTab('login')">Login</button>
                     <button class="tab" onclick="switchTab('register')">Register</button>
                 </div>
+
+                <div id="loginTab" class="tab-content active">
+                    <h2 style="margin-bottom: 20px;">Welcome Back</h2>
+                    <div class="form-group">
+                        <label>University Email</label>
+                        <input type="email" id="loginEmail" placeholder="student@riarauniversity.ac.ke">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" placeholder="Enter your password">
+                    </div>
+                    <button class="btn btn-primary" onclick="login()">Login</button>
                 </div>
+
+                <div id="registerTab" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Create Account</h2>
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" id="regFirstName" placeholder="John">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" id="regLastName" placeholder="Doe">
+                    </div>
+                    <div class="form-group">
+                        <label>University Email</label>
+                        <input type="email" id="regEmail" placeholder="student@riarauniversity.ac.ke">
+                    </div>
+                    <div class="form-group">
+                        <label>Student/Staff ID</label>
+                        <input type="text" id="regId" placeholder="RU2024001">
+                    </div>
+                    <div class="form-group">
+                        <label>Department</label>
+                        <select id="regDepartment">
+                            <option value="">Select Department</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Business">Business Administration</option>
+                            <option value="Engineering">Engineering</option>
+                            <option value="Arts">Arts & Humanities</option>
+                            <option value="Sciences">Natural Sciences</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select id="regRole">
+                            <option value="student">Student</option>
+                            <option value="staff">Staff/Faculty</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="regPassword" placeholder="Create a password">
+                    </div>
+                    <button class="btn btn-primary" onclick="register()">Register
+                        </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="dashboardSection" style="display: none;">
+                <button class="back-btn" onclick="logout()">← Logout</button>
+
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalEvents">0</div>
+                        <div class="stat-label">Total Events</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="registeredEvents">0</div>
+                        <div class="stat-label">My Registrations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="attendedEvents">0</div>
+                        <div class="stat-label">Events Attended</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="upcomingEvents">0</div>
+                        <div class="stat-label">Upcoming Events</div>
+                    </div>
+                </div>
+
+                <!-- Events Section -->
+                <div class="events-section">
+                    <div class="section-header">
+                        <h2>Campus Events</h2>
+                        <button class="btn btn-primary" onclick="showCreateEvent()" id="createEventBtn" style="display: none;">+ Create Event</button>
+                    </div>
+
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="searchInput" placeholder="Search events..." onkeyup="filterEvents()">
+                    </div>
+
+                    <div class="filters">
+                        <button class="filter-btn active" onclick="filterByCategory('all', this)">All Events</button>
+                        <button class="filter-btn" onclick="filterByCategory('academic', this)">Academic</button>
+                        <button class="filter-btn" onclick="filterByCategory('social', this)">Social</button>
+                        <button class="filter-btn" onclick="filterByCategory('administrative', this)">Administrative</button>
+                    </div>
+
+                    <div class="events-grid" id="eventsGrid">
+                        <!-- Events will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Event Details Modal -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalEventTitle"></h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalEventContent"></div>
+        </div>
+    </div>
+
+    <!-- Create Event Modal -->
+    <div class="modal" id="createEventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Event</h2>
+                <button class="modal-close" onclick="closeCreateEventModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Event Title</label>
+                <input type="text" id="eventTitle" placeholder="Enter event title">
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <select id="eventCategory">
+                    <option value="academic">Academic</option>
+                    <option value="social">Social</option>
+                    <option value="administrative">Administrative</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="eventDescription" placeholder="Enter event description"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="eventDate">
+            </div>
+            <div class="form-group">
+                <label>Time</label>
+                <input type="time" id="eventTime">
+            </div>
+            <div class="form-group">
+                <label>Location</label>
+                <input type="text" id="eventLocation" placeholder="Event venue">
+            </div>
+            <div class="form-group">
+                <label>Capacity</label>
+                <input type="number" id="eventCapacity" placeholder="Maximum attendees">
+            </div>
+            <div class="form-group">
+                <label>Event Image (Optional)</label>
+                <input type="file" id="eventImage" accept="image/*" placeholder="Upload event image">
+                <small>Supported formats: JPG, PNG, GIF</small>
+            </div>
+            <button class="btn btn-primary" onclick="createEvent()" style="cursor: pointer; width: 100%; padding: 12px;">Create Event</button>
+        </div>
+    </div>
+
+    <!-- Notification Box -->
+    <div class="notification-box" id="notificationBox"></div>
+
+    <!-- External JavaScript Modules -->
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/events.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
