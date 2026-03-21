@@ -491,6 +491,22 @@ function viewTicket(eventId) {
 }
 
 async function createEvent() {
+    console.log('CREATE EVENT button clicked');
+    console.log('Current user:', currentUser);
+    console.log('Is authenticated:', isAuthenticated());
+
+    // Check authentication first
+    if (!isAuthenticated()) {
+        showNotification('Error', 'You must be logged in to create an event', 'error');
+        return;
+    }
+
+    // Check authorization - only admin and staff can create events
+    if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'staff') {
+        showNotification('Error', 'Only administrators and staff can create events', 'error');
+        return;
+    }
+
     const title = document.getElementById('eventTitle').value.trim();
     const category = document.getElementById('eventCategory').value;
     const description = document.getElementById('eventDescription').value.trim();

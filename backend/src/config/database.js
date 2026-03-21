@@ -28,6 +28,10 @@ const connectDB = async () => {
         await sequelize.authenticate();
         console.log(`✅ PostgreSQL Connected: ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}`);
 
+        // Import models and set up associations
+        require('../models/index');
+        console.log('✅ Models and associations loaded');
+
         // Sync models with database
         await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
         console.log('✅ Database models synchronized');
