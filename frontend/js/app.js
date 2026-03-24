@@ -21,10 +21,11 @@ window.onload = function() {
 
     getStartedButtons.forEach((btn, index) => {
         console.log(`Setting up event listener for button ${index + 1}`);
-        btn.addEventListener('click', function(e) {
-            console.log(`Get Started button ${index + 1} clicked!`);
-            goToAuth();
-        }, false);
+        // Note: onclick is already set in HTML, so we don't add another listener
+        // btn.addEventListener('click', function(e) {
+        //     console.log(`Get Started button ${index + 1} clicked!`);
+        //     goToAuth();
+        // }, false);
 
         // Make sure buttons are enabled and visible
         btn.disabled = false;

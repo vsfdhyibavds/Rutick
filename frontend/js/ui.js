@@ -12,7 +12,7 @@ function goToHome() {
     if (appPages) appPages.style.display = 'none';
 }
 
-function goToAuth() {
+function goToAuth(defaultTab = 'login') {
     console.log('goToAuth() called');
     const homePage = document.getElementById('homePage');
     const appPages = document.getElementById('appPages');
@@ -36,7 +36,26 @@ function goToAuth() {
         console.log('Hidden dashboardSection');
     }
 
+    // Switch to the specified tab
+    switchTab(defaultTab);
+
     console.log('goToAuth() navigation complete');
+}
+
+// Password visibility toggle
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const button = input.nextElementSibling;
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        button.textContent = '🙈'; // Hide icon
+        button.title = 'Hide Password';
+    } else {
+        input.type = 'password';
+        button.textContent = '👁️'; // Show icon
+        button.title = 'Show Password';
+    }
 }
 
 function showDashboard() {

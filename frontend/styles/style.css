@@ -299,6 +299,35 @@ header {
     margin-bottom: 20px;
 }
 
+.password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-container input {
+    padding-right: 50px; /* Make space for the toggle button */
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #666;
+    padding: 5px;
+    border-radius: 4px;
+    transition: color 0.3s;
+}
+
+.toggle-password:hover {
+    color: #667eea;
+}
+
 label {
     display: block;
     margin-bottom: 8px;

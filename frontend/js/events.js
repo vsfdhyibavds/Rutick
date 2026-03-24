@@ -560,30 +560,74 @@ async function handleCreateEvent() {
     }
 
     console.log('✅ All validations passed');
+    console.log('About to process event creation...');
 
-    // Call backend API to create event
-    const eventData = {
-        title: title,
-        category: category,
-        description: description,
-        date: date,
-        time: time,
-        location: location,
-        capacity: capacity
-    };
+    try {
+        console.log('Inside try block - about to create eventData object');
 
-    console.log('Sending event data:', eventData);
+        // Call backend API to create event
+        const eventData = {
+            title: title,
+            category: category,
+            description: description,
+            date: date,
+            time: time,
+            location: location,
+            capacity: capacity
+        };
 
-    // Handle image upload if provided
-    if (imageFile) {
-        console.log('📸 Processing image upload...');
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            eventData.image = e.target.result; // Base64 encoded image
-            console.log('📸 Image processed, calling API...');
+        console.log('eventData object created:', eventData);
+        console.log('imageFile value:', imageFile);
 
+
+        console.log('Checking if imageFile exists...');
+
+        // Handle image upload if provided
+        if (imageFile) {
+            console.log('📸 Processing image upload...');
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    eventData.image = e.target.result; // Base64 encoded image
+                    console.log('📸 Image processed, calling API...');
+
+                    const result = await eventAPI.create(eventData);
+                    console.log('📸 API result:', result);
+
+                    if (result.success) {
+                        console.log('✅ Event created successfully');
+                        closeCreateEventModal();
+                        // Clear form
+                        document.getElementById('eventTitle').value = '';
+                        document.getElementById('eventDescription').value = '';
+                        document.getElementById('eventDate').value = '';
+                        document.getElementById('eventTime').value = '';
+                        document.getElementById('eventLocation').value = '';
+                        document.getElementById('eventCapacity').value = '';
+                        document.getElementById('eventImage').value = '';
+
+                        updateStats();
+                        loadEvents();
+                        showNotification('Event Created', title + ' has been created successfully!');
+                    } else {
+                        console.error('❌ Event creation failed:', result.error);
+                        showNotification('Error', result.error || 'Failed to create event', 'error');
+                    }
+                } catch (error) {
+                    console.error('❌ Error in image processing:', error);
+                    showNotification('Error', 'Failed to process image: ' + error.message, 'error');
+                }
+            };
+            reader.onerror = (error) => {
+                console.error('❌ FileReader error:', error);
+                showNotification('Error', 'Failed to read image file', 'error');
+            };
+            reader.readAsDataURL(imageFile);
+        } else {
+            // No image - proceed without it
+            console.log('📝 No image, calling API directly...');
             const result = await eventAPI.create(eventData);
-            console.log('📸 API result:', result);
+            console.log('📝 API result:', result);
 
             if (result.success) {
                 console.log('✅ Event created successfully');
@@ -601,35 +645,12 @@ async function handleCreateEvent() {
                 loadEvents();
                 showNotification('Event Created', title + ' has been created successfully!');
             } else {
-                console.log('❌ Event creation failed:', result.error);
+                console.error('❌ Event creation failed:', result.error);
                 showNotification('Error', result.error || 'Failed to create event', 'error');
             }
-        };
-        reader.readAsDataURL(imageFile);
-    } else {
-        // No image - proceed without it
-        console.log('📝 No image, calling API directly...');
-        const result = await eventAPI.create(eventData);
-        console.log('📝 API result:', result);
-
-        if (result.success) {
-            console.log('✅ Event created successfully');
-            closeCreateEventModal();
-            // Clear form
-            document.getElementById('eventTitle').value = '';
-            document.getElementById('eventDescription').value = '';
-            document.getElementById('eventDate').value = '';
-            document.getElementById('eventTime').value = '';
-            document.getElementById('eventLocation').value = '';
-            document.getElementById('eventCapacity').value = '';
-            document.getElementById('eventImage').value = '';
-
-            updateStats();
-            loadEvents();
-            showNotification('Event Created', title + ' has been created successfully!');
-        } else {
-            console.log('❌ Event creation failed:', result.error);
-            showNotification('Error', result.error || 'Failed to create event', 'error');
         }
+    } catch (error) {
+        console.error('❌ Error in handleCreateEvent:', error);
+        showNotification('Error', 'An unexpected error occurred: ' + error.message, 'error');
     }
 }

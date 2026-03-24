@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "test": "jest",
     "seed": "node src/scripts/seedDatabase.js",
+    "migrate:event-schema": "node src/scripts/migrateEventSchema.js",
     "test:db": "node src/scripts/testMongoConnection.js",
     "lint": "eslint src/",
     "format": "prettier --write src/"

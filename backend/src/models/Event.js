@@ -8,7 +8,7 @@ const Event = sequelize.define('Event', {
         primaryKey: true,
     },
     title: {
-        type: DataTypes.STRING(200),
+        type: DataTypes.STRING(500),
         allowNull: false,
         validate: {
             notEmpty: true,
@@ -41,7 +41,7 @@ const Event = sequelize.define('Event', {
         defaultValue: 120, // minutes
     },
     location: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: false,
     },
     capacity: {
@@ -71,7 +71,7 @@ const Event = sequelize.define('Event', {
         allowNull: false,
     },
     banner: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         defaultValue: null,
     },
     rating: {
