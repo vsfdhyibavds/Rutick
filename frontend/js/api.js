@@ -132,6 +132,12 @@ const userAPI = {
     getAttendance: (userId) =>
         apiGet(`/users/attendance/${userId}`),
 
+    getReminders: (userId) =>
+        apiGet(`/users/${userId}/reminders`),
+
+    markReminderRead: (userId, reminderId) =>
+        apiPost(`/users/${userId}/reminders/${reminderId}/read`, {}),
+
     deactivateAccount: () =>
         apiDelete('/users/deactivate'),
 

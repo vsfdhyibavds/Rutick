@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Registration = require('../models/Registration');
 const Certificate = require('../models/Certificate');
+const Reminder = require('../models/Reminder');
+const Event = require('../models/Event');
 const { Op } = require('sequelize');
 
 // Get user profile
@@ -155,6 +157,53 @@ exports.getAttendanceRecord = async (req, res, next) => {
             count: registrations.length,
             attendanceRecord: registrations
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Get user reminders
+exports.getMyReminders = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        const reminders = await Reminder.findAll({
+            where: { userId },
+            include: [{
+                association: 'event',
+                model: Event,
+                attributes: ['id', 'title', 'date', 'time', 'location']
+            }],
+            order: [['scheduledFor', 'ASC']]
+        });
+
+        res.json({
+            success: true,
+            reminders
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Mark reminder as read
+exports.markReminderAsRead = async (req, res, next) => {
+    try {
+        const { reminderId } = req.params;
+        const userId = req.user.id;
+
+        const reminder = await Reminder.findOne({
+            where: { id: reminderId, userId }
+        });
+
+        if (!reminder) {
+            return res.status(404).json({ success: false, message: 'Reminder not found' });
+        }
+
+        reminder.status = 'read';
+        await reminder.save();
+
+        res.json({ success: true, message: 'Reminder marked as read' });
     } catch (error) {
         next(error);
     }

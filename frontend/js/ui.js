@@ -88,6 +88,7 @@ function showDashboard() {
     }
 
     updateStats();
+    loadReminders();
     loadEvents();
 }
 

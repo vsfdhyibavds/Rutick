@@ -235,6 +235,85 @@ async function loadEvents() {
     }
 }
 
+async function loadReminders() {
+    const container = document.getElementById('remindersGrid');
+    if (!container) return;
+
+    container.innerHTML = '<div class="empty-state"><p>Loading reminders...</p></div>';
+
+    const userId = currentUser?.id;
+    if (!userId) {
+        container.innerHTML = '<div class="empty-state"><p>Please login to see reminders</p></div>';
+        return;
+    }
+
+    const result = await userAPI.getReminders(userId);
+    if (!result.success) {
+        container.innerHTML = '<div class="empty-state"><p>Failed to load reminders</p></div>';
+        return;
+    }
+
+    const reminders = result.data.reminders || [];
+
+    if (!reminders.length) {
+        container.innerHTML = '<div class="empty-state"><p>No reminders yet</p></div>';
+        return;
+    }
+
+    container.innerHTML = '';
+
+    reminders.forEach(reminder => {
+        const card = document.createElement('div');
+        card.className = 'event-card';
+
+        const title = document.createElement('div');
+        title.className = 'event-title';
+        title.textContent = reminder.event?.title || 'Event Reminder';
+        card.appendChild(title);
+
+        const dateInfo = document.createElement('div');
+        dateInfo.className = 'event-details';
+        dateInfo.textContent = '⏰ ' + new Date(reminder.scheduledFor).toLocaleString();
+        card.appendChild(dateInfo);
+
+        const status = document.createElement('div');
+        status.className = 'event-details';
+        status.textContent = 'Status: ' + reminder.status.toUpperCase();
+        card.appendChild(status);
+
+        const msg = document.createElement('p');
+        msg.textContent = `Reminder type: ${reminder.reminderType}`;
+        card.appendChild(msg);
+
+        const buttonRow = document.createElement('div');
+        buttonRow.className = 'event-actions';
+
+        if (reminder.status !== 'read') {
+            const readBtn = document.createElement('button');
+            readBtn.className = 'btn btn-secondary';
+            readBtn.textContent = 'Mark as Read';
+            readBtn.onclick = async () => {
+                const userId = currentUser?.id;
+                if (!userId) {
+                    showNotification('Error', 'User not authenticated', 'error');
+                    return;
+                }
+                const res = await userAPI.markReminderRead(userId, reminder.id);
+                if (res.success) {
+                    showNotification('Success', 'Reminder marked as read', 'success');
+                    loadReminders();
+                } else {
+                    showNotification('Error', res.error || 'Could not mark reminder', 'error');
+                }
+            };
+            buttonRow.appendChild(readBtn);
+        }
+
+        card.appendChild(buttonRow);
+        container.appendChild(card);
+    });
+}
+
 function filterByCategory(category, btnElement = null) {
     currentFilter = category;
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
