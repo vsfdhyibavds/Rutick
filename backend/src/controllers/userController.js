@@ -212,7 +212,7 @@ exports.markReminderAsRead = async (req, res, next) => {
 // Deactivate account
 exports.deactivateAccount = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findByPk(req.user.id);
 
         if (!user) {
             return res.status(404).json({
@@ -238,29 +238,36 @@ exports.getDashboardStats = async (req, res, next) => {
     try {
         const userId = req.user.id;
 
-        const totalRegistrations = await Registration.countDocuments({ user: userId });
-        const attendedEvents = await Registration.countDocuments({ user: userId, status: 'checked-in' });
-        const upcomingEvents = await Registration.aggregate([
-            {
-                $match: { user: require('mongoose').Types.ObjectId(userId), status: 'registered' }
+        const totalRegistrations = await Registration.count({
+            where: { userId }
+        });
+
+        const attendedEvents = await Registration.count({
+            where: { userId, status: 'checked-in' }
+        });
+
+        const upcomingEvents = await Registration.count({
+            where: {
+                userId,
+                status: 'registered'
             },
-            {
-                $lookup: {
-                    from: 'events',
-                    localField: 'event',
-                    foreignField: '_id',
-                    as: 'eventData'
+            include: [{
+                model: Event,
+                as: 'event',
+                required: true,
+                where: {
+                    date: { [Op.gt]: new Date() }
                 }
-            },
-            {
-                $match: { 'eventData.date': { $gt: new Date() } }
-            }
-        ]);
+            }]
+        });
 
-        const Certificate = require('../models/Certificate');
-        const certificates = await Certificate.countDocuments({ user: userId, status: 'issued' });
+        const certificates = await Certificate.count({
+            where: { userId, status: 'issued' }
+        });
 
-        const totalEvents = await Event.countDocuments({ isDeleted: false });
+        const totalEvents = await Event.count({
+            where: { status: { [Op.ne]: 'cancelled' } }
+        });
 
         res.json({
             success: true,
@@ -268,7 +275,7 @@ exports.getDashboardStats = async (req, res, next) => {
                 totalEvents,
                 registeredEvents: totalRegistrations,
                 attendedEvents,
-                upcomingEvents: upcomingEvents.length,
+                upcomingEvents,
                 certificates
             }
         });

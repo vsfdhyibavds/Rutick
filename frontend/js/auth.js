@@ -5,6 +5,21 @@
 
 let currentUser = null;
 
+function loadCurrentUserFromStorage() {
+    const token = sessionStorage.getItem('authToken');
+    const userString = sessionStorage.getItem('currentUser');
+    if (token && userString) {
+        try {
+            currentUser = JSON.parse(userString);
+        } catch (error) {
+            console.warn('Failed to restore user from storage:', error);
+            currentUser = null;
+            sessionStorage.removeItem('currentUser');
+            sessionStorage.removeItem('authToken');
+        }
+    }
+}
+
 // Validate login form inputs
 function validateLoginForm() {
     const email = document.getElementById('loginEmail').value.trim();
@@ -46,6 +61,7 @@ async function login() {
         if (result.success) {
             currentUser = result.data.user;
             sessionStorage.setItem('authToken', result.data.token);
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
             showDashboard();
             showNotification('Login Successful', `Welcome back, ${currentUser.firstName}!`);
         } else {
@@ -157,6 +173,7 @@ async function register() {
         if (result.success) {
             currentUser = result.data.user;
             sessionStorage.setItem('authToken', result.data.token);
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
             showDashboard();
             showNotification('Registration Successful', `Welcome to Tanga Tunga, ${firstName}!`);
         } else {

@@ -222,7 +222,7 @@ async function loadEvents() {
                 const ticketBtn = document.createElement('button');
                 ticketBtn.className = 'btn btn-warning';
                 ticketBtn.textContent = 'View Ticket';
-                ticketBtn.onclick = () => viewTicket(event._id);
+                ticketBtn.onclick = () => viewTicket(event.id);
                 actions.appendChild(ticketBtn);
             }
 

@@ -12,6 +12,11 @@ window.onload = function() {
     // Verify security environment
     checkSecurityHeaders();
 
+    // Restore authentication state from storage
+    if (typeof loadCurrentUserFromStorage === 'function') {
+        loadCurrentUserFromStorage();
+    }
+
     // Set up form handlers
     setupFormHandlers();
 

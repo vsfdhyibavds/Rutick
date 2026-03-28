@@ -105,8 +105,8 @@ const registrationAPI = {
     register: (eventId) =>
         apiPost(`/registrations/events/${eventId}/register`, {}),
 
-    cancel: (eventId, reason = '') =>
-        apiPost(`/registrations/events/${eventId}/unregister`, { reason }),
+    cancel: (eventId) =>
+        apiDelete(`/registrations/events/${eventId}/unregister`),
 
     getMyRegistration: (eventId) =>
         apiGet(`/registrations/events/${eventId}/registration`),

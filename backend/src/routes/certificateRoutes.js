@@ -16,6 +16,6 @@ router.post('/events/:eventId/certificates', authMiddleware, generateCertificate
 router.get('/users/:userId/certificates', getUserCertificates);
 router.get('/:certificateId', getCertificate);
 router.get('/events/:eventId/certificates', authMiddleware, roleMiddleware(['staff', 'admin']), getEventCertificates);
-router.delete('/:certificateId', authMiddleware, roleMiddleware(['staff, admin']), revokeCertificate);
+router.delete('/:certificateId', authMiddleware, roleMiddleware(['staff', 'admin']), revokeCertificate);
 
 module.exports = router;
