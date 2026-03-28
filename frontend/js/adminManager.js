@@ -31,48 +31,69 @@ class AdminManager {
             return;
         }
 
-        let html = `
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Student ID</th>
-                        <th>Status</th>
-                        <th>Registered At</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
+        const table = document.createElement('table');
+        table.className = 'admin-table';
+
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Student ID</th>
+                <th>Status</th>
+                <th>Registered At</th>
+                <th>Actions</th>
+            </tr>
         `;
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
 
         registrations.forEach(reg => {
-            const statusBadge = reg.status === 'checked-in'
-                ? '<span class="badge badge-success">Checked In</span>'
-                : '<span class="badge badge-warning">Registered</span>';
+            const row = document.createElement('tr');
 
-            html += `
-                <tr>
-                    <td>${reg.user?.firstName} ${reg.user?.lastName}</td>
-                    <td>${reg.user?.email}</td>
-                    <td>${reg.user?.studentId}</td>
-                    <td>${statusBadge}</td>
-                    <td>${new Date(reg.registeredAt).toLocaleDateString()}</td>
-                    <td>
-                        ${reg.status === 'registered' ?
-                            `<button class="btn btn-sm btn-success" onclick="adminManager.checkInAttendee('${reg._id}')">Check In</button>`
-                            : 'Checked In'}
-                    </td>
-                </tr>
-            `;
+            const nameCell = document.createElement('td');
+            nameCell.textContent = `${reg.user?.firstName || ''} ${reg.user?.lastName || ''}`;
+            row.appendChild(nameCell);
+
+            const emailCell = document.createElement('td');
+            emailCell.textContent = reg.user?.email || '';
+            row.appendChild(emailCell);
+
+            const studentIdCell = document.createElement('td');
+            studentIdCell.textContent = reg.user?.studentId || '';
+            row.appendChild(studentIdCell);
+
+            const statusCell = document.createElement('td');
+            const statusBadge = document.createElement('span');
+            statusBadge.className = reg.status === 'checked-in' ? 'badge badge-success' : 'badge badge-warning';
+            statusBadge.textContent = reg.status === 'checked-in' ? 'Checked In' : 'Registered';
+            statusCell.appendChild(statusBadge);
+            row.appendChild(statusCell);
+
+            const registeredAtCell = document.createElement('td');
+            registeredAtCell.textContent = new Date(reg.registeredAt).toLocaleDateString();
+            row.appendChild(registeredAtCell);
+
+            const actionsCell = document.createElement('td');
+            if (reg.status === 'registered') {
+                const checkInButton = document.createElement('button');
+                checkInButton.className = 'btn btn-sm btn-success';
+                checkInButton.type = 'button';
+                checkInButton.textContent = 'Check In';
+                checkInButton.addEventListener('click', () => this.checkInAttendee(reg._id));
+                actionsCell.appendChild(checkInButton);
+            } else {
+                actionsCell.textContent = 'Checked In';
+            }
+            row.appendChild(actionsCell);
+
+            tbody.appendChild(row);
         });
 
-        html += `
-                </tbody>
-            </table>
-        `;
-
-        el.innerHTML = html;
+        table.appendChild(tbody);
+        el.innerHTML = '';
+        el.appendChild(table);
     }
 
     displayCertificates(certificates, container = 'certificatesListContainer') {

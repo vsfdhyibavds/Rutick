@@ -94,20 +94,37 @@ class EventManager {
                 html += `<span class="badge badge-danger">Past Event</span>`;
             }
 
-            html += `<div class="event-actions">
-                <button class="btn btn-info" onclick="eventManager.viewEvent('${event._id}')">View Details</button>`;
+            card.innerHTML = html;
+
+            const actions = document.createElement('div');
+            actions.className = 'event-actions';
+
+            const viewButton = document.createElement('button');
+            viewButton.className = 'btn btn-info';
+            viewButton.type = 'button';
+            viewButton.textContent = 'View Details';
+            viewButton.addEventListener('click', () => this.viewEvent(event._id));
+            actions.appendChild(viewButton);
 
             if (!event.isRegistered && !isPast) {
-                html += `<button class="btn btn-success" onclick="eventManager.registerEvent('${event._id}')">Register</button>`;
+                const registerButton = document.createElement('button');
+                registerButton.className = 'btn btn-success';
+                registerButton.type = 'button';
+                registerButton.textContent = 'Register';
+                registerButton.addEventListener('click', () => this.registerEvent(event._id));
+                actions.appendChild(registerButton);
             }
 
             if (event.isRegistered) {
-                html += `<button class="btn btn-warning" onclick="eventManager.viewTicket('${event._id}')">View Ticket</button>`;
+                const ticketButton = document.createElement('button');
+                ticketButton.className = 'btn btn-warning';
+                ticketButton.type = 'button';
+                ticketButton.textContent = 'View Ticket';
+                ticketButton.addEventListener('click', () => this.viewTicket(event._id));
+                actions.appendChild(ticketButton);
             }
 
-            html += `</div>`;
-
-            card.innerHTML = html;
+            card.appendChild(actions);
             grid.appendChild(card);
         });
     }

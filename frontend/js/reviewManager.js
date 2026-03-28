@@ -38,56 +38,104 @@ class ReviewManager {
             return;
         }
 
-        let html = '';
-        reviews.forEach(review => {
-            html += `
-                <div class="review-item">
-                    <div class="review-header">
-                        <span class="reviewer-name">${review.user?.firstName} ${review.user?.lastName}</span>
-                        <span class="review-rating">${'⭐'.repeat(review.rating)}</span>
-                    </div>
-                    <h4>${review.title}</h4>
-                    <p class="review-text">${review.comment}</p>
-                    <p class="review-date">${new Date(review.createdAt).toLocaleDateString()}</p>
-                    <button class="btn btn-sm btn-secondary" onclick="reviewManager.likeReview('${review._id}')">
-                        👍 Like (${review.likes})
-                    </button>
-                </div>
-            `;
-        });
+        el.innerHTML = '';
 
-        el.innerHTML = html;
+        reviews.forEach(review => {
+            const item = document.createElement('div');
+            item.className = 'review-item';
+
+            const header = document.createElement('div');
+            header.className = 'review-header';
+
+            const reviewerName = document.createElement('span');
+            reviewerName.className = 'reviewer-name';
+            reviewerName.textContent = `${review.user?.firstName || ''} ${review.user?.lastName || ''}`;
+            header.appendChild(reviewerName);
+
+            const rating = document.createElement('span');
+            rating.className = 'review-rating';
+            rating.textContent = '⭐'.repeat(review.rating || 0);
+            header.appendChild(rating);
+
+            item.appendChild(header);
+
+            const title = document.createElement('h4');
+            title.textContent = review.title || '';
+            item.appendChild(title);
+
+            const comment = document.createElement('p');
+            comment.className = 'review-text';
+            comment.textContent = review.comment || '';
+            item.appendChild(comment);
+
+            const date = document.createElement('p');
+            date.className = 'review-date';
+            date.textContent = new Date(review.createdAt).toLocaleDateString();
+            item.appendChild(date);
+
+            const likeButton = document.createElement('button');
+            likeButton.className = 'btn btn-sm btn-secondary';
+            likeButton.type = 'button';
+            likeButton.textContent = `👍 Like (${review.likes || 0})`;
+            likeButton.addEventListener('click', () => this.likeReview(review._id));
+            item.appendChild(likeButton);
+
+            el.appendChild(item);
+        });
     }
 
     showReviewForm(eventId, container = 'reviewFormContainer') {
         const el = document.getElementById(container);
         if (!el) return;
 
-        el.innerHTML = `
-            <div class="review-form">
-                <h3>Leave a Review</h3>
-                <div class="form-group">
-                    <label>Rating</label>
-                    <select id="reviewRating">
-                        <option value="">Select rating</option>
-                        <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
-                        <option value="4">⭐⭐⭐⭐ Good</option>
-                        <option value="3">⭐⭐⭐ Average</option>
-                        <option value="2">⭐⭐ Poor</option>
-                        <option value="1">⭐ Very Poor</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Title</label>
-                    <input type="text" id="reviewTitle" placeholder="Review title" maxlength="100">
-                </div>
-                <div class="form-group">
-                    <label>Comment</label>
-                    <textarea id="reviewComment" placeholder="Share your experience..." minlength="10" maxlength="1000"></textarea>
-                </div>
-                <button class="btn btn-primary" onclick="reviewManager.submitReview('${eventId}')">Submit Review</button>
-            </div>
+        el.innerHTML = '';
+
+        const form = document.createElement('div');
+        form.className = 'review-form';
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Leave a Review';
+        form.appendChild(heading);
+
+        const ratingGroup = document.createElement('div');
+        ratingGroup.className = 'form-group';
+        ratingGroup.innerHTML = `
+            <label>Rating</label>
+            <select id="reviewRating">
+                <option value="">Select rating</option>
+                <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+                <option value="4">⭐⭐⭐⭐ Good</option>
+                <option value="3">⭐⭐⭐ Average</option>
+                <option value="2">⭐⭐ Poor</option>
+                <option value="1">⭐ Very Poor</option>
+            </select>
         `;
+        form.appendChild(ratingGroup);
+
+        const titleGroup = document.createElement('div');
+        titleGroup.className = 'form-group';
+        titleGroup.innerHTML = `
+            <label>Title</label>
+            <input type="text" id="reviewTitle" placeholder="Review title" maxlength="100">
+        `;
+        form.appendChild(titleGroup);
+
+        const commentGroup = document.createElement('div');
+        commentGroup.className = 'form-group';
+        commentGroup.innerHTML = `
+            <label>Comment</label>
+            <textarea id="reviewComment" placeholder="Share your experience..." minlength="10" maxlength="1000"></textarea>
+        `;
+        form.appendChild(commentGroup);
+
+        const submitButton = document.createElement('button');
+        submitButton.className = 'btn btn-primary';
+        submitButton.type = 'button';
+        submitButton.textContent = 'Submit Review';
+        submitButton.addEventListener('click', () => this.submitReview(eventId));
+        form.appendChild(submitButton);
+
+        el.appendChild(form);
     }
 
     async submitReview(eventId) {

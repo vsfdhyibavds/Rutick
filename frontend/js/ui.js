@@ -130,17 +130,32 @@ async function loadReminders() {
         let eventTitle = 'Event';
         if (reminder.event && reminder.event.title) eventTitle = reminder.event.title;
 
-        reminderCard.innerHTML = `
-            <div class="reminder-row">
-                <div><strong>${escapeHtml(eventTitle)}</strong></div>
-                <div>${new Date(reminder.scheduledFor).toLocaleString()}</div>
-                <div>${reminder.status}</div>
-            </div>
-            <div class="reminder-actions">
-                ${reminder.read ? '<span class="badge badge-success">Read</span>' : `<button class="btn btn-sm" onclick="markReminderAsRead('${reminder.id}')">Mark as read</button>`}
-            </div>
+        const row = document.createElement('div');
+        row.className = 'reminder-row';
+        row.innerHTML = `
+            <div><strong>${escapeHtml(eventTitle)}</strong></div>
+            <div>${new Date(reminder.scheduledFor).toLocaleString()}</div>
+            <div>${escapeHtml(reminder.status)}</div>
         `;
 
+        const actions = document.createElement('div');
+        actions.className = 'reminder-actions';
+        if (reminder.read) {
+            const badge = document.createElement('span');
+            badge.className = 'badge badge-success';
+            badge.textContent = 'Read';
+            actions.appendChild(badge);
+        } else {
+            const button = document.createElement('button');
+            button.className = 'btn btn-sm';
+            button.type = 'button';
+            button.textContent = 'Mark as read';
+            button.addEventListener('click', () => markReminderAsRead(reminder.id));
+            actions.appendChild(button);
+        }
+
+        reminderCard.appendChild(row);
+        reminderCard.appendChild(actions);
         reminderList.appendChild(reminderCard);
     });
 }
@@ -186,27 +201,31 @@ function showNotification(title, message, type = 'success') {
     }, 4000);
 }
 
-function downloadTicket(eventId) {
-    const event = events.find(e => e.id === eventId);
+async function downloadTicket(eventId) {
+    if (!currentUser) {
+        showNotification('Error', 'Please log in to download your ticket', 'error');
+        return;
+    }
 
-    if (!event) {
+    const result = await eventAPI.getById(eventId);
+    if (!result.success || !result.data?.event) {
         showNotification('Error', 'Event not found', 'error');
         return;
     }
 
-    // Create safe ticket content (text only, no HTML)
+    const event = result.data.event;
     const ticketContent = [
         'EVENT TICKET',
         '====================',
-        'Event: ' + event.title,
-        'Date: ' + event.date,
-        'Time: ' + event.time,
-        'Location: ' + event.location,
+        `Event: ${event.title}`,
+        `Date: ${formatDate(event.date)}`,
+        `Time: ${event.time}`,
+        `Location: ${event.location}`,
         '',
-        'Attendee: ' + currentUser.firstName + ' ' + currentUser.lastName,
-        'Email: ' + currentUser.email,
+        `Attendee: ${currentUser.firstName} ${currentUser.lastName}`,
+        `Email: ${currentUser.email}`,
         '',
-        'Ticket ID: TICKET_' + eventId + '_' + currentUser.id,
+        `Ticket ID: ${eventId}-${currentUser.id}`,
         '====================',
         '',
         'Keep this ticket for your records.'
@@ -214,7 +233,7 @@ function downloadTicket(eventId) {
 
     const element = document.createElement('a');
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(ticketContent));
-    element.setAttribute('download', event.title + '_ticket.txt');
+    element.setAttribute('download', `${event.title.replace(/\s+/g, '_')}_ticket.txt`);
     element.style.display = 'none';
     document.body.appendChild(element);
     element.click();

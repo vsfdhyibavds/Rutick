@@ -202,13 +202,29 @@ function getCsrfToken() {
 
 // Set up form submission handlers for security
 function setupFormHandlers() {
-    const loginForm = document.getElementById('loginTab');
-    if (loginForm) {
-        document.addEventListener('keypress', function(e) {
-            if ((e.key === 'Enter') && (document.activeElement.id === 'loginPassword')) {
+    const loginPassword = document.getElementById('loginPassword');
+    const registerPassword = document.getElementById('regPassword');
+
+    const submitOnEnter = (event) => {
+        if (event.key === 'Enter') {
+            const active = document.activeElement;
+            if (active === loginPassword) {
+                event.preventDefault();
                 login();
             }
-        });
+            if (active === registerPassword) {
+                event.preventDefault();
+                register();
+            }
+        }
+    };
+
+    if (loginPassword) {
+        loginPassword.addEventListener('keydown', submitOnEnter);
+    }
+
+    if (registerPassword) {
+        registerPassword.addEventListener('keydown', submitOnEnter);
     }
 }
 

@@ -31,23 +31,42 @@ class CertificateManager {
             return;
         }
 
-        let html = '<div class="certificates-grid">';
-        certificates.forEach(cert => {
-            html += `
-                <div class="certificate-card">
-                    <div class="certificate-icon">🏆</div>
-                    <h4>${cert.title}</h4>
-                    <p><strong>Event:</strong> ${cert.event?.title}</p>
-                    <p><strong>Issued:</strong> ${new Date(cert.issueDate).toLocaleDateString()}</p>
-                    <button class="btn btn-primary btn-sm" onclick="certificateManager.downloadCertificate('${cert.certificateId}')">
-                        Download
-                    </button>
-                </div>
-            `;
-        });
-        html += '</div>';
+        el.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'certificates-grid';
 
-        el.innerHTML = html;
+        certificates.forEach(cert => {
+            const card = document.createElement('div');
+            card.className = 'certificate-card';
+
+            const icon = document.createElement('div');
+            icon.className = 'certificate-icon';
+            icon.textContent = '🏆';
+            card.appendChild(icon);
+
+            const title = document.createElement('h4');
+            title.textContent = cert.title || 'Certificate';
+            card.appendChild(title);
+
+            const eventInfo = document.createElement('p');
+            eventInfo.innerHTML = `<strong>Event:</strong> ${cert.event?.title || 'Unknown'}`;
+            card.appendChild(eventInfo);
+
+            const issued = document.createElement('p');
+            issued.innerHTML = `<strong>Issued:</strong> ${new Date(cert.issueDate).toLocaleDateString()}`;
+            card.appendChild(issued);
+
+            const downloadButton = document.createElement('button');
+            downloadButton.className = 'btn btn-primary btn-sm';
+            downloadButton.type = 'button';
+            downloadButton.textContent = 'Download';
+            downloadButton.addEventListener('click', () => this.downloadCertificate(cert.certificateId));
+            card.appendChild(downloadButton);
+
+            grid.appendChild(card);
+        });
+
+        el.appendChild(grid);
     }
 
     async downloadCertificate(certificateId) {

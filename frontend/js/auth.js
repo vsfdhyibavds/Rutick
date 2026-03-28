@@ -5,19 +5,37 @@
 
 let currentUser = null;
 
-function loadCurrentUserFromStorage() {
+async function loadCurrentUserFromStorage() {
     const token = sessionStorage.getItem('authToken');
+    if (!token) return false;
+
     const userString = sessionStorage.getItem('currentUser');
-    if (token && userString) {
+    if (userString) {
         try {
             currentUser = JSON.parse(userString);
+            return true;
         } catch (error) {
             console.warn('Failed to restore user from storage:', error);
             currentUser = null;
             sessionStorage.removeItem('currentUser');
             sessionStorage.removeItem('authToken');
+            return false;
         }
     }
+
+    try {
+        const result = await authAPI.getMe();
+        if (result.success && result.data.user) {
+            currentUser = result.data.user;
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+            return true;
+        }
+    } catch (error) {
+        console.warn('Failed to refresh current user from API:', error);
+    }
+
+    sessionStorage.removeItem('authToken');
+    return false;
 }
 
 // Validate login form inputs
@@ -71,35 +89,6 @@ async function login() {
         console.error('Login error:', error);
         showNotification('Error', 'Login failed. Please try again.', 'error');
     }
-}
-
-// Simulate login for development (remove in production)
-function simulateLogin(email) {
-    // Determine role based on email
-    let role = 'student';
-    if (email.includes('admin@')) {
-        role = 'admin';
-    } else if (email.includes('staff@')) {
-        role = 'staff';
-    }
-
-    // Mock user data for UI testing only
-    const mockUser = {
-        email: email,
-        firstName: email.split('@')[0].split('.')[0] || 'User',
-        lastName: email.split('@')[0].split('.')[1] || 'Test',
-        role: role,  // Now uses detected role from email
-        id: 'RU' + Math.random().toString(36).substr(2, 7),
-        department: 'Computer Science'
-    };
-
-    currentUser = mockUser;
-    // Store only token, never credentials
-    const token = generateMockToken();
-    sessionStorage.setItem('authToken', token);
-
-    showDashboard();
-    showNotification('Login Successful', `Welcome back as ${role.toUpperCase()}!`);
 }
 
 // Validate registration form inputs
@@ -183,22 +172,6 @@ async function register() {
         console.error('Registration error:', error);
         showNotification('Error', 'Registration failed. Please try again.', 'error');
     }
-}
-
-// Simulate registration for development (remove in production)
-function simulateRegister(firstName, lastName, email, id, department) {
-    const newUser = { firstName, lastName, email, id, department, role: 'student' };
-    currentUser = newUser;
-    const token = generateMockToken();
-    sessionStorage.setItem('authToken', token);
-
-    showDashboard();
-    showNotification('Registration Successful', `Welcome to Tanga Tunga, ${firstName}!`);
-}
-
-// Generate mock token for development (replace with real JWT in production)
-function generateMockToken() {
-    return 'Bearer_' + btoa(JSON.stringify({ exp: Date.now() + 3600000 }));
 }
 
 function logout() {
