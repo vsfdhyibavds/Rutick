@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tanga Tunga- Riara University Event Management</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="styles/style.css">
 </head>
 <body>
@@ -215,7 +216,14 @@
                 <!-- Events Section -->
                 <div class="events-section">
                     <div class="section-header">
-                        <h2>Campus Events</h2>
+                        <div>
+                            <h2>Campus Events</h2>
+                            <div class="action-buttons" id="eventViewSwitcher">
+                                <button class="btn btn-secondary active" type="button" data-event-view="events">Event Feed</button>
+                                <button class="btn btn-secondary" type="button" data-event-view="calendar">Calendar</button>
+                                <button class="btn btn-secondary" type="button" data-event-view="gallery">Gallery</button>
+                            </div>
+                        </div>
                         <button class="btn btn-primary" id="createEventBtn" style="display: none;">+ Create Event</button>
                     </div>
 
@@ -229,6 +237,28 @@
                         <button class="filter-btn" data-category="academic">Academic</button>
                         <button class="filter-btn" data-category="social">Social</button>
                         <button class="filter-btn" data-category="administrative">Administrative</button>
+                    </div>
+
+                    <div id="calendarSection" class="calendar-widget" style="display: none;">
+                        <div class="calendar-header">
+                            <div>
+                                <h3>Event Calendar</h3>
+                                <p id="calendarMonthLabel" style="margin: 4px 0 0; color: #555;"></p>
+                            </div>
+                            <div>
+                                <button class="btn btn-secondary btn-sm" type="button" id="prevMonthBtn">← Prev</button>
+                                <button class="btn btn-secondary btn-sm" type="button" id="nextMonthBtn">Next →</button>
+                            </div>
+                        </div>
+                        <div class="calendar-days" id="calendarDays"></div>
+                        <div id="calendarDayEvents"></div>
+                    </div>
+
+                    <div id="gallerySection" style="display: none; margin-top: 20px;">
+                        <div class="section-header">
+                            <h3>Event Photo Gallery</h3>
+                        </div>
+                        <div class="photo-gallery" id="photoGallery"></div>
                     </div>
 
                     <div class="events-grid" id="eventsGrid">

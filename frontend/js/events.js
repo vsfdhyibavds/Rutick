@@ -4,9 +4,13 @@
  */
 
 let currentFilter = 'all';
+let currentEvents = [];
+let calendarViewDate = new Date();
+let selectedCalendarDate = null;
+let activeEventView = 'events';
 
 // Sample data (will be replaced with backend calls)
-let events = [
+const sampleEvents = [
     {
         id: 1,
         title: 'Computer Science Symposium 2024',
@@ -80,7 +84,342 @@ let events = [
     }
 ];
 
-async function updateStats() {
+function getEventId(event) {
+    return event?.id || event?._id || '';
+}
+
+function normalizeEventPhotos(event) {
+    if (Array.isArray(event.photos) && event.photos.length) {
+        return event.photos;
+    }
+
+    if (event.banner) {
+        return [event.banner];
+    }
+
+    if (event.image) {
+        return [event.image];
+    }
+
+    return [event.title?.charAt(0) || '📷'];
+}
+
+function getEventsOnDate(events, date) {
+    const targetYear = date.getFullYear();
+    const targetMonth = date.getMonth();
+    const targetDay = date.getDate();
+
+    return events.filter(event => {
+        const eventDate = new Date(event.date);
+        return eventDate.getFullYear() === targetYear &&
+            eventDate.getMonth() === targetMonth &&
+            eventDate.getDate() === targetDay;
+    });
+}
+
+function isSameDate(a, b) {
+    return a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate();
+}
+
+function formatCalendarMonth(date) {
+    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
+function formatICalTimestamp(date) {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
+
+function sanitizeForICal(value) {
+    return String(value || '')
+        .replace(/\n/g, '\\n')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;');
+}
+
+function buildIcsContent(event) {
+    const start = new Date(`${event.date}T${event.time}`);
+    const durationMinutes = parseInt(event.duration, 10) || 120;
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+    const description = sanitizeForICal(event.description || '');
+    const location = sanitizeForICal(event.location || '');
+    const title = sanitizeForICal(event.title || 'Tanga Tunga Event');
+    const uid = `${getEventId(event)}@tangatunga.local`;
+
+    return [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Tanga Tunga//Event Calendar//EN',
+        'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${formatICalTimestamp(new Date())}`,
+        `DTSTART:${formatICalTimestamp(start)}`,
+        `DTEND:${formatICalTimestamp(end)}`,
+        `SUMMARY:${title}`,
+        `DESCRIPTION:${description}`,
+        `LOCATION:${location}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\r\n');
+}
+
+function getGoogleCalendarUrl(event) {
+    const start = new Date(`${event.date}T${event.time}`);
+    const durationMinutes = parseInt(event.duration, 10) || 120;
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+    const dates = `${formatICalTimestamp(start)}/${formatICalTimestamp(end)}`;
+    const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: event.title || 'Tanga Tunga Event',
+        dates,
+        details: event.description || '',
+        location: event.location || '',
+        ctz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    });
+
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function downloadICal(event) {
+    const content = buildIcsContent(event);
+    const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${(event.title || 'event').replace(/\s+/g, '_')}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showNotification('Success', 'Calendar file downloaded', 'success');
+}
+
+function showEventView(view) {
+    activeEventView = view;
+
+    const eventsGrid = document.getElementById('eventsGrid');
+    const calendarSection = document.getElementById('calendarSection');
+    const gallerySection = document.getElementById('gallerySection');
+    const searchBox = document.querySelector('.search-box');
+    const filters = document.querySelector('.filters');
+
+    if (eventsGrid) {
+        eventsGrid.style.display = view === 'events' ? 'grid' : 'none';
+    }
+    if (calendarSection) {
+        calendarSection.style.display = view === 'calendar' ? 'block' : 'none';
+    }
+    if (gallerySection) {
+        gallerySection.style.display = view === 'gallery' ? 'block' : 'none';
+    }
+    if (searchBox) {
+        searchBox.style.display = view === 'events' ? 'flex' : 'none';
+    }
+    if (filters) {
+        filters.style.display = view === 'events' ? 'flex' : 'none';
+    }
+
+    document.querySelectorAll('[data-event-view]').forEach(button => {
+        if (button.dataset.eventView === view) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+
+    if (view === 'calendar') {
+        renderCalendar(currentEvents.length ? currentEvents : sampleEvents);
+    }
+    if (view === 'gallery') {
+        renderPhotoGallery(currentEvents.length ? currentEvents : sampleEvents);
+    }
+}
+
+function renderCalendar(events, monthDate = calendarViewDate) {
+    if (!events) return;
+
+    calendarViewDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    selectedCalendarDate = selectedCalendarDate || new Date();
+
+    const monthLabel = document.getElementById('calendarMonthLabel');
+    if (monthLabel) {
+        monthLabel.textContent = formatCalendarMonth(calendarViewDate);
+    }
+
+    const calendarDays = document.getElementById('calendarDays');
+    if (!calendarDays) return;
+    calendarDays.innerHTML = '';
+
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    weekdays.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day';
+        header.style.fontWeight = '700';
+        header.textContent = day;
+        calendarDays.appendChild(header);
+    });
+
+    const firstDayIndex = calendarViewDate.getDay();
+    const daysInMonth = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 0).getDate();
+    const today = new Date();
+    let firstEventDate = null;
+
+    for (let blank = 0; blank < firstDayIndex; blank++) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'calendar-day';
+        placeholder.style.visibility = 'hidden';
+        calendarDays.appendChild(placeholder);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), day);
+        const eventsForDay = getEventsOnDate(events, date);
+        const cell = document.createElement('div');
+        cell.className = 'calendar-day';
+        if (isSameDate(date, today)) {
+            cell.classList.add('today');
+        }
+        if (eventsForDay.length) {
+            cell.classList.add('has-event');
+        }
+
+        const number = document.createElement('div');
+        number.textContent = day;
+        cell.appendChild(number);
+
+        if (eventsForDay.length) {
+            const badge = document.createElement('div');
+            badge.style.fontSize = '12px';
+            badge.style.marginTop = '6px';
+            badge.textContent = `${eventsForDay.length} event${eventsForDay.length > 1 ? 's' : ''}`;
+            cell.appendChild(badge);
+            firstEventDate = firstEventDate || date;
+        }
+
+        cell.addEventListener('click', () => {
+            selectedCalendarDate = date;
+            renderCalendar(events, calendarViewDate);
+            renderCalendarDayDetails(date);
+        });
+        calendarDays.appendChild(cell);
+    }
+
+    const dayToRender = selectedCalendarDate && selectedCalendarDate.getMonth() === calendarViewDate.getMonth()
+        ? selectedCalendarDate
+        : (firstEventDate || new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), 1));
+
+    selectedCalendarDate = dayToRender;
+    renderCalendarDayDetails(dayToRender, events);
+}
+
+function renderCalendarDayDetails(date, events = currentEvents.length ? currentEvents : sampleEvents) {
+    const container = document.getElementById('calendarDayEvents');
+    if (!container) return;
+
+    const eventsForDay = getEventsOnDate(events, date);
+    container.innerHTML = '';
+
+    const heading = document.createElement('div');
+    heading.className = 'section-header';
+    const title = document.createElement('h3');
+    title.textContent = `Events on ${date.toLocaleDateString()}`;
+    heading.appendChild(title);
+    container.appendChild(heading);
+
+    if (eventsForDay.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = 'No events are scheduled for this date.';
+        container.appendChild(empty);
+        return;
+    }
+
+    eventsForDay.forEach(event => {
+        const card = document.createElement('div');
+        card.className = 'event-card';
+
+        const title = document.createElement('div');
+        title.className = 'event-title';
+        title.textContent = event.title;
+        card.appendChild(title);
+
+        const details = document.createElement('div');
+        details.className = 'event-details';
+        details.textContent = `${event.time} • ${event.location}`;
+        card.appendChild(details);
+
+        const actions = document.createElement('div');
+        actions.className = 'event-actions';
+
+        const viewButton = document.createElement('button');
+        viewButton.className = 'btn btn-info';
+        viewButton.type = 'button';
+        viewButton.textContent = 'View Details';
+        viewButton.addEventListener('click', () => viewEvent(getEventId(event)));
+        actions.appendChild(viewButton);
+
+        const googleButton = document.createElement('button');
+        googleButton.className = 'btn btn-secondary';
+        googleButton.type = 'button';
+        googleButton.textContent = 'Add to Google Calendar';
+        googleButton.addEventListener('click', () => window.open(getGoogleCalendarUrl(event), '_blank'));
+        actions.appendChild(googleButton);
+
+        const icalButton = document.createElement('button');
+        icalButton.className = 'btn btn-primary';
+        icalButton.type = 'button';
+        icalButton.textContent = 'Download iCal';
+        icalButton.addEventListener('click', () => downloadICal(event));
+        actions.appendChild(icalButton);
+
+        card.appendChild(actions);
+        container.appendChild(card);
+    });
+}
+
+function renderPhotoGallery(events) {
+    const gallery = document.getElementById('photoGallery');
+    if (!gallery) return;
+
+    gallery.innerHTML = '';
+    const photoItems = [];
+
+    events.forEach(event => {
+        normalizeEventPhotos(event).forEach(photo => {
+            photoItems.push({ event, photo });
+        });
+    });
+
+    if (photoItems.length === 0) {
+        gallery.innerHTML = '<div class="empty-state"><p>No event photos available yet.</p></div>';
+        return;
+    }
+
+    photoItems.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'photo-item';
+
+        const photoUrl = String(item.photo || '');
+        const isImageUrl = /^https?:\/\//i.test(photoUrl) || /^data:image\//i.test(photoUrl);
+
+        if (isImageUrl) {
+            card.style.backgroundImage = `url('${photoUrl}')`;
+            card.style.backgroundSize = 'cover';
+            card.style.backgroundPosition = 'center';
+            card.textContent = '';
+        } else {
+            card.textContent = item.photo;
+        }
+
+        card.title = item.event.title || 'Event Photo';
+        card.addEventListener('click', () => viewEvent(getEventId(item.event)));
+        gallery.appendChild(card);
+    });
+}
+
+async function loadEvents() {
     try {
         // Get all events from backend
         const eventsResult = await eventAPI.getAll();
@@ -113,7 +452,10 @@ async function loadEvents() {
         const result = await eventAPI.getAll();
 
         if (!result.success) {
+            currentEvents = [];
             grid.innerHTML = '<div class="empty-state"><h3>Failed to load events</h3><p>' + (result.error || 'Please try again later') + '</p></div>';
+            if (activeEventView === 'calendar') renderCalendar(currentEvents);
+            if (activeEventView === 'gallery') renderPhotoGallery(currentEvents);
             return;
         }
 
@@ -123,8 +465,12 @@ async function loadEvents() {
             return event.category === currentFilter;
         });
 
+        currentEvents = filteredEvents;
+
         if (filteredEvents.length === 0) {
             grid.innerHTML = '<div class="empty-state"><h3>No events found</h3><p>Check back later for new events!</p></div>';
+            if (activeEventView === 'calendar') renderCalendar(currentEvents);
+            if (activeEventView === 'gallery') renderPhotoGallery(currentEvents);
             return;
         }
 
@@ -229,9 +575,15 @@ async function loadEvents() {
             card.appendChild(actions);
             grid.appendChild(card);
         });
+
+        if (activeEventView === 'calendar') renderCalendar(currentEvents);
+        if (activeEventView === 'gallery') renderPhotoGallery(currentEvents);
     } catch (error) {
+        currentEvents = [];
         console.error('Error loading events:', error);
         grid.innerHTML = '<div class="empty-state"><h3>Error loading events</h3><p>Please refresh the page</p></div>';
+        if (activeEventView === 'calendar') renderCalendar(currentEvents);
+        if (activeEventView === 'gallery') renderPhotoGallery(currentEvents);
     }
 }
 
@@ -446,6 +798,20 @@ function viewEvent(eventId) {
             actions.appendChild(ticketBtn);
         }
 
+        const googleCalBtn = document.createElement('button');
+        googleCalBtn.className = 'btn btn-secondary';
+        googleCalBtn.type = 'button';
+        googleCalBtn.textContent = 'Add to Google Calendar';
+        googleCalBtn.addEventListener('click', () => window.open(getGoogleCalendarUrl(event), '_blank'));
+        actions.appendChild(googleCalBtn);
+
+        const icalBtn = document.createElement('button');
+        icalBtn.className = 'btn btn-primary';
+        icalBtn.type = 'button';
+        icalBtn.textContent = 'Download iCal';
+        icalBtn.addEventListener('click', () => downloadICal(event));
+        actions.appendChild(icalBtn);
+
         const closeBtn = document.createElement('button');
         closeBtn.className = 'btn btn-secondary';
         closeBtn.textContent = 'Close';
@@ -459,6 +825,32 @@ function viewEvent(eventId) {
         console.error('Error fetching event:', error);
         showNotification('Error', 'Failed to load event details', 'error');
     });
+}
+
+async function updateStats() {
+    try {
+        const result = await eventAPI.getAll();
+        if (!result.success) {
+            return;
+        }
+
+        const allEvents = result.data.events || [];
+        const userRegistrations = allEvents.filter(e => e.isRegistered);
+        const upcoming = allEvents.filter(e => new Date(e.date) > new Date());
+        const attended = allEvents.filter(e => e.attendedCount > 0).length;
+
+        const totalEventsEl = document.getElementById('totalEvents');
+        const registeredEventsEl = document.getElementById('registeredEvents');
+        const attendedEventsEl = document.getElementById('attendedEvents');
+        const upcomingEventsEl = document.getElementById('upcomingEvents');
+
+        if (totalEventsEl) totalEventsEl.textContent = allEvents.length;
+        if (registeredEventsEl) registeredEventsEl.textContent = userRegistrations.length;
+        if (attendedEventsEl) attendedEventsEl.textContent = attended;
+        if (upcomingEventsEl) upcomingEventsEl.textContent = upcoming.length;
+    } catch (error) {
+        console.error('Error updating stats:', error);
+    }
 }
 
 function registerForEvent(eventId) {

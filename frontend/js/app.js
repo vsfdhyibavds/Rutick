@@ -63,6 +63,29 @@ function bindUIActions() {
         }
     });
 
+    document.querySelectorAll('[data-event-view]').forEach(button => {
+        const view = button.dataset.eventView;
+        if (view) {
+            button.addEventListener('click', () => showEventView(view));
+        }
+    });
+
+    const prevMonthBtn = document.getElementById('prevMonthBtn');
+    if (prevMonthBtn) {
+        prevMonthBtn.addEventListener('click', () => {
+            calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
+            renderCalendar(currentEvents.length ? currentEvents : sampleEvents);
+        });
+    }
+
+    const nextMonthBtn = document.getElementById('nextMonthBtn');
+    if (nextMonthBtn) {
+        nextMonthBtn.addEventListener('click', () => {
+            calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+            renderCalendar(currentEvents.length ? currentEvents : sampleEvents);
+        });
+    }
+
     document.querySelectorAll('.modal-close').forEach(button => {
         button.addEventListener('click', () => {
             const modal = button.closest('.modal');
